@@ -14,7 +14,7 @@ from ..exchange.base import ExchangeBase
 class ExchangeFetcher(ExchangeBase):
     """抓取数据基础类, ExchangeBase 的抽象方法继续往下传"""
 
-    oneToken = OneToken()
+    one_token = OneToken()
 
     def __init__(self, apiKey='', apiSecret='', params={}):
         super().__init__(apiKey=apiKey, apiSecret=apiSecret, params=params)
@@ -28,7 +28,7 @@ class ExchangeFetcher(ExchangeBase):
     def _process_one_token_cfgs(self, params={}):
         """尝试配置 OneToken 对象"""
         if 'one_token_cfgs' in params:
-            self.oneToken = OneToken(params['one_token_cfgs'])
+            self.one_token = OneToken(params['one_token_cfgs'])
 
     def _fetch_candle_data_by_ccxt_object(self, coin_pair: CoinPair, time_frame: TimeFrame, since_timestamp, limit, hour_offset=0, params={}):
         """通过 CCXT 抓取数据，转为统一格式"""
@@ -39,7 +39,7 @@ class ExchangeFetcher(ExchangeBase):
     def _fetch_candle_data_by_one_token(self, coin_pair: CoinPair, time_frame: TimeFrame, since_timestamp, limit, params={}):
         """通过 OneToken 抓取数据，转为统一格式"""
         exchange_name = re.sub('Fetcher$', '', self.__class__.__name__)
-        data = self.oneToken.fetch_candle_data(exchange_name, coin_pair, time_frame, limit, since_timestamp)
+        data = self.one_token.fetch_candle_data(exchange_name, coin_pair, time_frame, limit, since_timestamp)
         df = pd.DataFrame(data=data, columns=[COL_CANDLE_BEGIN_TIME, COL_OPEN, COL_HIGH, COL_LOW, COL_CLOSE,
                                               COL_VOLUME])
         return df
