@@ -37,7 +37,7 @@ class TraderLogger:
 **Exchange**: {}
 **Coin Pair**: {}
 **Exception**: {}""".format(phase_name, self.exchange_name, self.coin_pair_name, traceback.format_exc())
-        self.recorder.log_exception(msg)
+        self.recorder.record_exception(msg)
 
     def log_phase_info(self, phase_name, content):
         """交易过程记录
@@ -53,4 +53,4 @@ class TraderLogger:
 **Exchange**: {}
 **Coin Pair**: {}
 **Information**: {}""".format(phase_name, self.exchange_name, self.coin_pair_name, content)
-        self.recorder.log_procedure(msg)
+        self.recorder.record_procedure(msg)
