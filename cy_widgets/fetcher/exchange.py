@@ -11,7 +11,7 @@ from ..exchange.provider import CCXTProvider
 
 
 class ExchangeFetcher:
-    """抓取数据类, 统一流程"""
+    """现货交易的抓取数据类, 统一流程"""
 
     def __init__(self, ccxt_provider: CCXTProvider, one_token: OneToken):
         # API 对象都用外部传入
