@@ -1,27 +1,175 @@
-from abc import ABC
-from cy_components.utils.one_token import OneToken
+import time
+
+from abc import ABC, abstractmethod
 
 from ..exchange.order import *
 from ..exchange.provider import CCXTProvider
+from ..logger.trading import TraderLogger
 
 
-class BaseOrderExecutor(ABC):
-    """订单执行"""
+class BaseExchangeOrderExecutor(ABC):
+    """现货订单执行抽象基类"""
 
-    def __init__(self, ccxt_provider: CCXTProvider, order: Order):
+    def __init__(self, ccxt_provider: CCXTProvider, order: Order, logger: TraderLogger):
         # API 对象都用外部传入
         self._ccxt_provider = ccxt_provider
         self._order = Order
+        self._logger = logger
 
-    def _fetch_first_ticker(self):
+    # MARK: Protect
+
+    def _create_order(self, amount, price=None, params={}):
+        """最终统一的下单入口
+
+        Parameters
+        ----------
+        amount : double
+            下单数量
+        price : double, optional
+            价格 by default None
+        params : dict, optional
+            额外参数, by default {}
+
+        Returns
+        -------
+        dict
+            订单信息
+
+        Raises
+        ------
+        NotImplementedError
+            不支持的订单类型
+        """
+        symbol = self._order.coin_pair.pair()
+        order_info = None
+        # Limit
+        if self._order.type == OrderType.LIMIT:
+            # Buy
+            if self._order.side == OrderSide.BUY:
+                order_info = self._ccxt_provider.ccxt_object_for_order.create_limit_buy_order(
+                    symbol, amount, price, params)
+            # Sell
+            elif self._order.side == OrderSide.SELL:
+                order_info = self._ccxt_provider.ccxt_object_for_order.create_limit_sell_order(
+                    symbol, amount, price, params)
+        # Market
+        elif self._order.type == OrderType.MARKET:
+            # Buy
+            if self._order.side == OrderSide.BUY:
+                order_info = self._ccxt_provider.ccxt_object_for_order.create_market_buy_order(symbol, amount, params)
+            # Sell
+            elif self._order.side == OrderSide.SELL:
+                order_info = self._ccxt_provider.ccxt_object_for_order.create_market_sell_order(symbol, amount, params)
+        # Others
+        else:
+            raise NotImplementedError('Not Supported Order Type')
+
+        return order_info
+
+    # MARK: Private
+
+    def _track_order(self, order_info, interval=3, fetch_times=5):
+        """监控订单，直到交易完成或尝试次数满时取消"""
+        try:
+            order_id = order_info['id']
+            # 完全成交，返回
+            if Order.all_filled(order_info):
+                return order_info
+            # 检查
+            while fetch_times > 0:
+                fetch_times -= 1
+                # 等待下次检查
+                time.sleep(interval)
+                self._logger.log_phase_info('Track Order', 'Remaining: {}'.format(order_info['remaining']))
+                # 抓取订单信息
+                order_info = self._ccxt_provider.ccxt_object_for_order.fetch_order(
+                    order_id, self._order.coin_pair.pair())
+                # 完全成交则结束
+                if Order.all_filled(order_info):
+                    return order_info
+            # 最终没有完全成交，取消订单
+            return self._ccxt_provider.ccxt_object_for_order.cancel_order(order_id, self._order.coin_pair.pair())
+        except Exception:
+            self._logger.log_exception('Track Order')
+            return None
+
+    def _buying_order(self, retry_times=3):
+        """下单 - 买"""
+        minimum_cost = self.fetch_min_cost()
+        _, bid_price = self.fetch_first_ticker()
+        remaining_base_coin_to_cost = self._order.base_coin_amount * self._order.leverage
+        if remaining_base_coin_to_cost < minimum_cost:
+            # 不够交易
+            self._logger.log_phase_info('Buying Signal', '{}({}) not enough to trade.'.format(
+                self.coin_pair.base_coin, self.base_coin_amount))
+            return None
+        # 如果目标币已经超出最小交易额，视为已经持仓，不买入
+        if bid_price * self._order.trade_coin_amount * self._order.coin_pair.estimated_value_of_base_coin > minimum_cost:
+            self._logger.log_phase_info('Buying Signal', 'Already hold {}({})'.format(
+                self.coin_pair.trade_coin, self.trade_coin_amount))
+            return None
+
+        # 正式下单流程
+        order_infos = []  # 结果订单数组
+        # 剩余待下单的量大于最小交易量
+        while remaining_base_coin_to_cost > minimum_cost and retry_times >= 0:
+            try:
+                ask_price, _ = self.fetch_first_ticker()
+                # 比卖一价高一点的价格下单
+                bid_order_price = ask_price * self._order.bid_order_price_coefficient
+                # 买单数量
+                bid_order_amount = remaining_base_coin_to_cost / bid_order_price
+                # 下单
+                order_info = self._create_order(bid_order_amount, bid_order_price)
+                self._logger.log_exception('Place Order', order_info)
+                # 追踪订单
+                order_info = self._track_order(order_info)
+                self._logger.log_exception('Track Order', order_info)
+            except Exception:
+                self._log_exception('Place Order')
+                retry_times -= 1
+                time.sleep(5)
+                continue
+            # 获取已经花费的数量
+            cost_amount = Order.fetch_cost_amount(order_info)
+            if cost_amount > 0:
+                # 计算剩余需要交易的数量
+                remaining_base_coin_to_cost = remaining_base_coin_to_cost - cost_amount
+                # append to list
+                order_infos.append(order_info)
+                self._log_procedure('Remaining Amount [BUY]', remaining_base_coin_to_cost)
+            else:
+                self._log_procedure('Order Timeout', '{}'.format(retry_times))
+                retry_times -= 1
+            # sleep before next loop
+            time.sleep(1.5)
+        # Integrate all order_infos
+        result_order = self._integrate_orders(order_infos, OrderSide.BUY)
+        return result_order
+
+    # MARK: Public
+
+    def fetch_first_ticker(self):
         """获取当前盘口价格 (ASK, BID)"""
         ticker = self._ccxt_provider.ccxt_object_for_query.fetch_ticker(self._order.coin_pair.pair())
         return (ticker['ask'], ticker['bid'])
 
-    def _fetch_min_order_amount(self):
+    def fetch_min_order_amount(self):
         """获取最小交易数量"""
         return self._ccxt_provider.ccxt_object_for_query.load_markets()[self._order.coin_pair.pair()]['limits']['amount']['min']
 
-    def _fetch_min_cost(self):
+    def fetch_min_cost(self):
         """获取最小交易金额"""
         return self._ccxt_provider.ccxt_object_for_query.load_markets()[self._order.coin_pair.pair()]['limits']['cost']['min']
+
+    @abstractmethod
+    def handle_long_order_request(self):
+        pass
+
+    @abstractmethod
+    def handle_short_order_request(self):
+        pass
+
+    @abstractmethod
+    def handle_close_order_request(self):
+        pass

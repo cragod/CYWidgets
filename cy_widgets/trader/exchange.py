@@ -1,4 +1,5 @@
-
+import time
+from functools import reduce
 from .order_exec import *
 from ..logger.trading import TraderLogger
 from ..exchange.provider import CCXTProvider
@@ -12,71 +13,24 @@ class ExchangeTrader:
         self.__ccxt_provider = ccxt_provider
         self.__order = order
         self.__logger = logger
-        self.__order_executor = ((BaseOrderExecutor)(eval(order.exchange_name + 'OrderExecutor'))(ccxt_provider, order)
-
-
-
-    # -------------------- TODO
-
-    @staticmethod
-    def _fetch_cost_amount(order_info):
-        """Cost amount"""
-        if order_info:
-            if order_info.get('cost'):
-                return order_info['cost']
-            if order_info.get('filled') and order_info.get('price'):
-                return order_info['filled'] * order_info['price']
-        return 0
-
-    def _integrate_orders(self, order_infos, order_side):
-        """Integrate a series orders to one"""
-        if not order_infos:
-            return None
-        elif len(order_infos) == 1:
-            return order_infos[0]
-
-        def reduce_order_field(key, order_list):
-            if len(order_list) == 1:
-                return order_list[0][key]
-            return reduce(lambda x, y: x[key] + y[key], order_list)
-        filled=reduce_order_field('filled', order_infos)
-        cost=reduce_order_field('cost', order_infos)
-        amount=reduce_order_field('filled', order_infos[:-1]) + order_infos[-1]['amount']
-        remaining=order_infos[-1]['remaining']
-        price=order_infos[-1]['price']
-        if cost and filled:
-            average=cost / filled
-        else:
-            ask_price, bid_price=self._fetch_first_ticker()
-            estimated_price=ask_price if order_side == OrderSide.BUY else bid_price
-            average=estimated_price
-            cost=average * filled
-        result_order=order_infos[-1]
-        result_order['filled']=filled
-        result_order['cost']=cost
-        result_order['amount']=amount
-        result_order['remaining']=remaining
-        result_order['price']=price
-        result_order['average']=average
-        self._log_procedure('Integrate Orders', result_order)
-        return result_order
+        self.__order_executor = eval(order.exchange_name + 'ExchangeOrderExecutor')(ccxt_provider, order)
 
     def _place_buying_orders(self, base_coin_to_cost, retry_times=3):
         """Using a order strategy, then integrate all orders to one to return"""
-        minimum_cost=self._fetch_min_cost()
-        order_infos=[]  # all orders
+        minimum_cost = self._fetch_min_cost()
+        order_infos = []  # all orders
         # Continue to buy if enough
         while base_coin_to_cost > minimum_cost and retry_times >= 0:
             try:
-                ask_price, _=self._fetch_first_ticker()
+                ask_price, _ = self._fetch_first_ticker()
                 # bid order price, a little higher then the first ask price
-                bid_order_price=ask_price * self.coin_pair.bid_order_price_coefficient
+                bid_order_price = ask_price * self.coin_pair.bid_order_price_coefficient
                 # bid order amount
-                bid_order_amount=base_coin_to_cost / bid_order_price
-                order_info=self._create_order(OrderType.LIMIT, OrderSide.BUY, bid_order_amount, bid_order_price)
+                bid_order_amount = base_coin_to_cost / bid_order_price
+                order_info = self._create_order(OrderType.LIMIT, OrderSide.BUY, bid_order_amount, bid_order_price)
                 self._log_procedure('Place Order', order_info)
                 # track order
-                order_info=self._track_order(order_info)
+                order_info = self._track_order(order_info)
                 self._log_procedure('Track Order', order_info)
             except Exception:
                 self._log_exception('Place Order')
@@ -84,10 +38,10 @@ class ExchangeTrader:
                 time.sleep(5)
                 continue
             # check filled amount
-            cost_amount=self._fetch_cost_amount(order_info)
+            cost_amount = self._fetch_cost_amount(order_info)
             if cost_amount > 0:
                 # minus cost amount
-                base_coin_to_cost=base_coin_to_cost - cost_amount
+                base_coin_to_cost = base_coin_to_cost - cost_amount
                 # append to list
                 order_infos.append(order_info)
                 self._log_procedure('Remaining Amount [BUY]', base_coin_to_cost)
@@ -97,27 +51,27 @@ class ExchangeTrader:
             # sleep before next loop
             time.sleep(1.5)
         # Integrate all order_infos
-        result_order=self._integrate_orders(order_infos, OrderSide.BUY)
+        result_order = self._integrate_orders(order_infos, OrderSide.BUY)
         return result_order
 
     def _place_selling_orders(self, trade_coin_amount_to_sell, retry_times=3):
         """Using a order strategy, then integrate all orders to one to return"""
-        minimum_cost=self._fetch_min_cost()
-        order_infos=[]  # all orders
+        minimum_cost = self._fetch_min_cost()
+        order_infos = []  # all orders
 
-        _, bid_price=self._fetch_first_ticker()
+        _, bid_price = self._fetch_first_ticker()
         # Continue to buy if could
         while bid_price * trade_coin_amount_to_sell > minimum_cost and retry_times >= 0:
             try:
-                _, bid_price=self._fetch_first_ticker()
+                _, bid_price = self._fetch_first_ticker()
                 # ask order price, a little lower then the first bid price
-                ask_order_price=bid_price * self.coin_pair.ask_order_price_coefficient
+                ask_order_price = bid_price * self.coin_pair.ask_order_price_coefficient
                 # create order
-                order_info=self._create_order(OrderType.LIMIT, OrderSide.SELL,
+                order_info = self._create_order(OrderType.LIMIT, OrderSide.SELL,
                                                 trade_coin_amount_to_sell, ask_order_price)
                 self._log_procedure('Place Order', order_info)
                 # track order
-                order_info=self._track_order(order_info)
+                order_info = self._track_order(order_info)
                 self._log_procedure('Track Order', order_info)
             except Exception:
                 self._log_exception('Place Order')
@@ -125,9 +79,9 @@ class ExchangeTrader:
                 time.sleep(5)
                 continue
             # check filled amount
-            remaining=order_info['remaining']
+            remaining = order_info['remaining']
             if math.isclose(remaining, 0):
-                trade_coin_amount_to_sell=remaining
+                trade_coin_amount_to_sell = remaining
                 # append to list
                 order_infos.append(order_info)
                 self._log_procedure('Remaining Amount [SELL]', trade_coin_amount_to_sell)
@@ -137,14 +91,14 @@ class ExchangeTrader:
             # sleep before next loop
             time.sleep(1.5)
         # Integrate all order_infos
-        result_order=self._integrate_orders(order_infos, OrderSide.SELL)
+        result_order = self._integrate_orders(order_infos, OrderSide.SELL)
         return result_order
 
     def _handle_buy_signal(self):
         """Buying long"""
-        minimum_cost=self._fetch_min_cost()
-        _, bid_price=self._fetch_first_ticker()
-        cost_base_coin_amount=self.base_coin_amount * self.leverage
+        minimum_cost = self._fetch_min_cost()
+        _, bid_price = self._fetch_first_ticker()
+        cost_base_coin_amount = self.base_coin_amount * self.leverage
         # Check min cost
         if cost_base_coin_amount < minimum_cost:
             self._log_procedure('Buying Signal', '{}({}) not enough to trade.'.format(
@@ -164,42 +118,31 @@ class ExchangeTrader:
 
     def _handle_close_signal(self):
         """Close"""
-        minimum_cost=self._fetch_min_cost()
-        _, bid_price=self._fetch_first_ticker()
+        minimum_cost = self._fetch_min_cost()
+        _, bid_price = self._fetch_first_ticker()
         # if the trade coin that already hold worth less then minimum cost, ignore the signal
         if bid_price * self.trade_coin_amount < minimum_cost:
             self._log_procedure('Close Signal', '{}({}) amount is too little to sell'.format(
                 self.coin_pair.trade_coin, self.trade_coin_amount))
             return None
-        order_info=self._place_selling_orders(self.trade_coin_amount)
+        order_info = self._place_selling_orders(self.trade_coin_amount)
         if order_info and order_info.get('side'):
-            order_info['side']='close'
+            order_info['side'] = 'close'
         return order_info
-
-    def _dispatch_signal(self, signal):
-        """analyse signal"""
-        if signal == 1:
-            return self._handle_buy_signal()
-        elif signal == -1:
-            return self._handle_sell_signal()
-        elif signal == 0:
-            return self._handle_close_signal()
-        else:
-            return None
 
     # Public Functions
 
     def fetch_balance_until_success(self):
         """Fetch balance"""
-        failed_times=0
+        failed_times = 0
         while True:
             try:
-                balance=self._ccxt_object_for_order.fetch_balance()['free']
-                self.base_coin_amount=float(balance[self.coin_pair.base_coin])
-                self.trade_coin_amount=float(balance[self.coin_pair.trade_coin])
+                balance = self._ccxt_object_for_order.fetch_balance()['free']
+                self.base_coin_amount = float(balance[self.coin_pair.base_coin])
+                self.trade_coin_amount = float(balance[self.coin_pair.trade_coin])
                 # log price
-                exchange_name=re.sub('Trader$', '', self.__class__.__name__)
-                balance_log="""Balance ({}.{}):
+                exchange_name = re.sub('Trader$', '', self.__class__.__name__)
+                balance_log = """Balance ({}.{}):
  - {}: {}
  - {}: {}""".format(exchange_name, self.coin_pair.pair(), self.coin_pair.trade_coin, self.trade_coin_amount, self.coin_pair.base_coin, self.base_coin_amount, )
                 self.logger.log_procedure(balance_log)
@@ -218,7 +161,7 @@ class ExchangeTrader:
         return:
             - None: When Exception Occurs
             - Formatted Order: Success"""
-        retry_duration=1
+        retry_duration = 1
         if self.debug:
             self._log_procedure('Place Order', """Won't place order, signal: {}""".format(signal))
             return None
