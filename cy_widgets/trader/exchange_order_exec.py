@@ -1,5 +1,4 @@
 import time
-import re
 
 from abc import ABC, abstractmethod
 from ..exchange.order import *
@@ -8,7 +7,10 @@ from ..logger.trading import TraderLogger
 
 
 class BaseExchangeOrderExecutor(ABC):
-    """现货订单执行抽象基类"""
+    """现货订单执行抽象基类
+    1. 获取余额信息
+    2. 下单
+    """
 
     def __init__(self, ccxt_provider: CCXTProvider, order: Order, logger: TraderLogger):
         # API 对象都用外部传入
@@ -195,9 +197,7 @@ class BaseExchangeOrderExecutor(ABC):
             time.sleep(1.5)
         # 整合订单
         order_info = self._order.integrate_orders(order_infos, self.fetch_first_ticker)
-        # 这步留给外部自己做
-        # if order_info and order_info.get('side'):
-        #     order_info['side'] = 'close'
+
         return order_info
 
     # MARK: Public
