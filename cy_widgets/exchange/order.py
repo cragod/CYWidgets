@@ -14,8 +14,6 @@ class OrderType(Enum):
     MARKET = 'market'  # 市价
     LIMIT = 'limit'    # 限价
 
-# ---------------------------------
-
 
 class Order:
     """订单类，带订单信息，已经最终下单信息
@@ -48,6 +46,8 @@ class Order:
     # 买卖价格系数
     bid_order_price_coefficient = 1.02
     ask_order_price_coefficient = 0.9
+    # 输出订单
+    result_orders = list()
 
     @staticmethod
     def fetch_cost_amount(order_info):
@@ -64,6 +64,13 @@ class Order:
     def all_filled(order_info):
         """检查是否全成交"""
         return order_info['remaining'] is not None and math.isclose(int(order_info['remaining']), 0.0)
+
+    @staticmethod
+    def set_order_side(order_info, side: OrderSide):
+        """更新Side"""
+        if order_info and order_info.get('side'):
+            order_info['side'] = side.value.lower()
+        return order_info
 
     def integrate_orders(self, order_infos, fetch_ticker_func):
         """整合一组订单
