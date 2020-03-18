@@ -94,7 +94,7 @@ class BaseExchangeOrderExecutor(ABC):
             return None
 
     def _buying_order(self, retry_times=3):
-        """下单 - 买"""
+        """下单买入，计算一个买入总量，循环下单，直到剩余需要买入的量低于最小下单量为止"""
         minimum_cost = self.fetch_min_cost()
         _, bid_price = self.fetch_first_ticker()
         remaining_base_coin_to_cost = self._order.base_coin_amount * self._order.leverage
@@ -126,6 +126,7 @@ class BaseExchangeOrderExecutor(ABC):
                 order_info = self._track_order(order_info)
                 self._logger.log_exception('Track Order', order_info)
             except Exception:
+                # 报错，直接等待进入下一次尝试
                 self._log_exception('Place Order')
                 retry_times -= 1
                 time.sleep(5)
@@ -135,17 +136,69 @@ class BaseExchangeOrderExecutor(ABC):
             if cost_amount > 0:
                 # 计算剩余需要交易的数量
                 remaining_base_coin_to_cost = remaining_base_coin_to_cost - cost_amount
-                # append to list
+                # 当前订单结束，追加到结果列表
                 order_infos.append(order_info)
                 self._log_procedure('Remaining Amount [BUY]', remaining_base_coin_to_cost)
             else:
+                # 没有花费的订单算失败了
                 self._log_procedure('Order Timeout', '{}'.format(retry_times))
                 retry_times -= 1
-            # sleep before next loop
+            # 等待下一次尝试
             time.sleep(1.5)
-        # Integrate all order_infos
-        result_order = self._integrate_orders(order_infos, OrderSide.BUY)
+        # 整合所有订单
+        result_order = self._order.integrate_orders(order_infos, self.fetch_first_ticker)
         return result_order
+
+    def _selling_order(self, retry_times=3, leverage=1):
+        """下单卖出，循环直到剩余的数量无法交易，这里用传入的 leverage 而不用 order 里的，
+        是因为这个接口可用于做空的卖出，也可以作为平仓的卖出，这两种情况的 leverage 意义不一样"""
+        minimum_cost = self.fetch_min_cost()
+        _, bid_price = self.fetch_first_ticker()
+        trade_coin_amount_to_sell = self._order.trade_coin_amount
+        # 使用买一价模拟总成交价，低于最小交易值，无法下单
+        if bid_price * trade_coin_amount_to_sell < minimum_cost:
+            self._logger.log_phase_info('Close Signal', '{}({}) amount is too little to sell'.format(
+                self._order.coin_pair.trade_coin, self._order.trade_coin_amount))
+            return None
+
+        # 正式交易流程
+        order_infos = []  # 订单列表
+        # 尝试下单
+        while bid_price * trade_coin_amount_to_sell > minimum_cost and retry_times >= 0:
+            try:
+                _, bid_price = self.fetch_first_ticker()
+                # 用比买一价更低的价格下单
+                ask_order_price = bid_price * self._order.ask_order_price_coefficient
+                # 创建订单
+                order_info = self._create_order(trade_coin_amount_to_sell, ask_order_price)
+                self._logger.log_phase_info('Place Order', order_info)
+                # 追踪订单
+                order_info = self._track_order(order_info)
+                self._logger.log_phase_info('Track Order', order_info)
+            except Exception:
+                # 出错，等待后继续尝试
+                self._logger.log_exception('Place Order')
+                retry_times -= 1
+                time.sleep(5)
+                continue
+            # 检查剩余需要买的数量
+            remaining = order_info['remaining']
+            if math.isclose(remaining, 0):
+                trade_coin_amount_to_sell = remaining
+                # 添加到结果
+                order_infos.append(order_info)
+                self._logger.log_phase_info('Remaining Amount [SELL]', trade_coin_amount_to_sell)
+            else:
+                self._logger.log_phase_info('Order Timeout', '{}'.format(retry_times))
+                retry_times -= 1
+            # 等待1.5后继续
+            time.sleep(1.5)
+        # 整合订单
+        order_info = self._order.integrate_orders(order_infos, self.fetch_first_ticker)
+        # 这步留给外部自己做
+        # if order_info and order_info.get('side'):
+        #     order_info['side'] = 'close'
+        return order_info
 
     # MARK: Public
 
