@@ -1,4 +1,3 @@
-import time
 from .exchange_order_exec import *
 from ..logger.trading import TraderLogger
 from ..exchange.provider import CCXTProvider
@@ -15,10 +14,6 @@ class ExchangeTrader:
         self.__order = order
         self.__logger = logger
         self.__order_executor = eval(order.exchange_name + 'ExchangeOrderExecutor')(ccxt_provider, order)
-
-    def fetch_and_hold_balance(self):
-        """获取余额，相关信息保存到 Order 中"""
-        self.__order_executor.fetch_balance()
 
     def place_order_with_signal(self, signal: ExchangeSignal):
         """解析信号进行下单"""

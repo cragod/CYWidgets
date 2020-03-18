@@ -215,27 +215,6 @@ class BaseExchangeOrderExecutor(ABC):
         """获取最小交易金额"""
         return self._ccxt_provider.ccxt_object_for_query.load_markets()[self._order.coin_pair.pair()]['limits']['cost']['min']
 
-    def fetch_balance(self):
-        """请求当前币对的各自数量"""
-        failed_times = 0
-        while True:
-            try:
-                balance = self._ccxt_provider.ccxt_object_for_order.fetch_balance()['free']
-                self._order.base_coin_amount = float(balance[self._order.coin_pair.base_coin])
-                self._order.trade_coin_amount = float(balance[self._order.coin_pair.trade_coin])
-                # 记录余额
-                balance_log = """
- - {}: {}
- - {}: {}""".format(self._order.coin_pair.trade_coin, self._order.trade_coin_amount,
-                    self._order.coin_pair.base_coin, self._order.base_coin_amount, )
-                self._logger.log_phase_info('Fetched Balance', balance_log)
-                return
-            except Exception:
-                failed_times += 1
-                if failed_times % 5 == 0:  # 5 次记录一次
-                    self._logger.log_exception('Fetch Balance')
-                time.sleep(5)
-
     @abstractmethod
     def handle_long_order_request(self):
         pass
