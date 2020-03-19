@@ -17,5 +17,17 @@ class RecorderBase(ABC):
     @abstractmethod
     def record_exception(self, content):
         """异常日志"""
-        # print(content, end='\n\n')
         NotImplementedError("Not Implemented")
+
+
+class SimpleRecorder(RecorderBase):
+    """简单打印"""
+
+    def record_simple_info(self, content):
+        print(content, end='\n\n')
+
+    def record_procedure(self, content):
+        print(content, end='\n\n')
+
+    def record_exception(self, content):
+        print(content, end='\n\n')
