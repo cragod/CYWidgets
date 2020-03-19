@@ -197,7 +197,6 @@ class BaseExchangeOrderExecutor(ABC):
             time.sleep(1.5)
         # 整合订单
         order_info = self._order.integrate_orders(order_infos, self.fetch_first_ticker)
-
         return order_info
 
     # MARK: Public
