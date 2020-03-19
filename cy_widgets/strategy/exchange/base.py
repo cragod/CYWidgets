@@ -6,6 +6,7 @@ from abc import ABC, abstractproperty
 class BaseExchangeStrategy(ABC):
     """交易策略基类"""
     shortable = False  # 能否做空
+    leverage = 1  # 策略杠杆
 
     def __init__(self, *initial_data, **kwargs):
         """支持按字典方式传入参数信息"""
@@ -15,8 +16,8 @@ class BaseExchangeStrategy(ABC):
         for key in kwargs:
             setattr(self, key, kwargs[key])
 
-    @staticmethod
-    def parameter_schema():
+    @classmethod
+    def parameter_schema(cls):
         """ 参数的配置选项
         type {
             0: Double
