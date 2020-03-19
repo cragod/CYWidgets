@@ -22,6 +22,7 @@ class BaseExchangeStrategy(ABC):
         type {
             0: Double
             1: Bool
+            2: Int
         }
         """
         return [

@@ -4,7 +4,7 @@ from cy_components.defines.column_names import *
 from .base import BaseExchangeStrategy
 
 
-class RSIStrategy(BaseExchangeStrategy):
+class RSIExchangeStrategy(BaseExchangeStrategy):
     """RSI交易策略"""
     bull_rsi = 0
     bull_rsi_upper = 0
@@ -30,7 +30,7 @@ class RSIStrategy(BaseExchangeStrategy):
     adx_low = 50
 
     def __init__(self, *args, **kwargs):
-        super(RSIStrategy, self).__init__(args, kwargs)
+        super(RSIExchangeStrategy, self).__init__(args, kwargs)
 
     @classmethod
     def parameter_schema(cls):

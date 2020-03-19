@@ -1,5 +1,6 @@
 import talib as ta
 import numpy as np
+import pandas as pd
 
 from cy_components.defines.column_names import *
 from .base import BaseExchangeStrategy
@@ -49,10 +50,10 @@ class BollingExchangeStrategy(BaseExchangeStrategy):
         """多取10个以防万一"""
         return self.n + 10
 
-    def available_to_calculate(self, df):
+    def available_to_calculate(self, df: pd.DataFrame):
         return self.m > 0 and self.n > 0 and df.shape[0] > self.m
 
-    def calculate_signals(self, df, drop_extra_columns=True):
+    def calculate_signals(self, df: pd.DataFrame, drop_extra_columns=True):
         #         print("""
         # Bolling Parameters：
         #     m: %s
