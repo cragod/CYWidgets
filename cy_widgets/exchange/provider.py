@@ -30,8 +30,12 @@ class CCXTObjectFactory:
         return CCXTObjectFactory._config_ccxt_object(ccxt_object, apiKey, apiSecret)
 
     @staticmethod
-    def okex_ccxt_object(apiKey, apiSecret):
+    def okex_ccxt_object(apiKey, apiSecret, param):
         ccxt_object = ccxt.okex3()
+        password = param['password']
+        if password is None:
+            raise ValueError(str)
+        ccxt_object.password = password
         return CCXTObjectFactory._config_ccxt_object(ccxt_object, apiKey, apiSecret)
 
     @staticmethod
@@ -59,8 +63,9 @@ class CCXTProvider:
                 'key': 'abc',
                 'secret': '123',
             }, ...]
+            'password': '...."
         """
-        self.__setup_ccxt_objects(api_key, secret, exg_type)
+        self.__setup_ccxt_objects(api_key, secret, exg_type, params)
         self.__process_extra_params(params)
 
     @property
@@ -95,7 +100,7 @@ class CCXTProvider:
             obj.load_markets()
             obj.enableRateLimit = True
 
-    def __setup_ccxt_objects(self, api_key, secret, exg_type: ExchangeType):
+    def __setup_ccxt_objects(self, api_key, secret, exg_type: ExchangeType, param={}):
         """初始化内部 Objects"""
         if exg_type == ExchangeType.Binance:
             self.__object_4_fetching = self.__object_4_query = self.__object_4_order = CCXTObjectFactory.binance_ccxt_object(
@@ -105,7 +110,7 @@ class CCXTProvider:
                 api_key, secret)
         elif exg_type == ExchangeType.Okex:
             self.__object_4_fetching = self.__object_4_query = self.__object_4_order = CCXTObjectFactory.okex_ccxt_object(
-                api_key, secret)
+                api_key, secret, param)
         elif exg_type == ExchangeType.Bitfinex:
             self.__object_4_fetching = self.__object_4_order = CCXTObjectFactory.bitfinex_v1_ccxt_object(
                 api_key, secret)
