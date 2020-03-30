@@ -42,7 +42,7 @@ class BaseExchangeOrderExecutor(ABC):
         NotImplementedError
             不支持的订单类型
         """
-        symbol = self._order.coin_pair.pair()
+        symbol = self._order.coin_pair.formatted()
         order_info = None
         # Limit
         if self._order.type == OrderType.LIMIT:
@@ -85,12 +85,12 @@ class BaseExchangeOrderExecutor(ABC):
                 self._logger.log_phase_info('Track Order', 'Remaining: {}'.format(order_info['remaining']))
                 # 抓取订单信息
                 order_info = self._ccxt_provider.ccxt_object_for_order.fetch_order(
-                    order_id, self._order.coin_pair.pair())
+                    order_id, self._order.coin_pair.formatted())
                 # 完全成交则结束
                 if Order.all_filled(order_info):
                     return order_info
             # 最终没有完全成交，取消订单
-            return self._ccxt_provider.ccxt_object_for_order.cancel_order(order_id, self._order.coin_pair.pair())
+            return self._ccxt_provider.ccxt_object_for_order.cancel_order(order_id, self._order.coin_pair.formatted())
         except Exception:
             self._logger.log_exception('Track Order')
             return None
@@ -203,16 +203,16 @@ class BaseExchangeOrderExecutor(ABC):
 
     def fetch_first_ticker(self):
         """获取当前盘口价格 (ASK, BID)"""
-        ticker = self._ccxt_provider.ccxt_object_for_query.fetch_ticker(self._order.coin_pair.pair())
+        ticker = self._ccxt_provider.ccxt_object_for_query.fetch_ticker(self._order.coin_pair.formatted())
         return (ticker['ask'], ticker['bid'])
 
     def fetch_min_order_amount(self):
         """获取最小交易数量"""
-        return self._ccxt_provider.ccxt_object_for_query.load_markets()[self._order.coin_pair.pair()]['limits']['amount']['min']
+        return self._ccxt_provider.ccxt_object_for_query.load_markets()[self._order.coin_pair.formatted()]['limits']['amount']['min']
 
     def fetch_min_cost(self):
         """获取最小交易金额"""
-        return self._ccxt_provider.ccxt_object_for_query.load_markets()[self._order.coin_pair.pair()]['limits']['cost']['min']
+        return self._ccxt_provider.ccxt_object_for_query.load_markets()[self._order.coin_pair.formatted()]['limits']['cost']['min']
 
     @abstractmethod
     def handle_long_order_request(self):

@@ -21,7 +21,7 @@ class ExchangeFetcher:
     def __fetch_candle_data_by_ccxt_object(self, coin_pair: CoinPair, time_frame: TimeFrame, since_timestamp, limit, hour_offset=0, params={}):
         """通过 CCXT 抓取数据，转为统一格式"""
         data = self.__ccxt_provider.ccxt_object_for_fetching.fetch_ohlcv(
-            coin_pair.pair(), time_frame.value, since_timestamp, limit)
+            coin_pair.formatted(), time_frame.value, since_timestamp, limit)
         df = cf.convert_raw_data_to_data_frame(data, hour_offset=hour_offset)
         return df
 
@@ -36,14 +36,52 @@ class ExchangeFetcher:
     # 公开的业务逻辑
 
     def fetch_historical_candle_data(self, coin_pair: CoinPair, time_frame: TimeFrame, since_timestamp, limit, params={}, by_ccxt=True):
-        """获取历史K线"""
+        """获取历史K线数据
+
+        Parameters
+        ----------
+        coin_pair : CoinPair
+            币对对象
+        time_frame : TimeFrame
+            TimeFrame 对象
+        since_timestamp : int
+            时间戳(ms)
+        limit : int
+            条数
+        params : dict, optional
+            额外配置
+        by_ccxt : bool, optional
+            使用 ccxt，False 则使用 OneToken, by default True
+        """
         if by_ccxt:
             return self.__fetch_candle_data_by_ccxt_object(coin_pair, time_frame, since_timestamp, limit, params=params)
         else:
             return self.__fetch_candle_data_by_one_token(coin_pair, time_frame, since_timestamp, limit, params)
 
     def fetch_real_time_candle_data(self, coin_pair: CoinPair, time_frame: TimeFrame, limit, params={}):
-        """获取实时K线"""
+        """获取实时K线
+
+        Parameters
+        ----------
+        coin_pair : CoinPair
+            币对对象
+        time_frame : TimeFrame
+            TimeFrame
+        limit : int
+            条数
+        params : dict, optional
+            额外参数, by default {}
+
+        Returns
+        -------
+        df
+            [description]
+
+        Raises
+        ------
+        ConnectionError
+            连接失败
+        """        """"""
         result_df = None
         # each time count
         fetch_lmt = 888

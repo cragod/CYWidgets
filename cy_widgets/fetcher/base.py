@@ -21,7 +21,7 @@ class ExchangeFetcher:
     def __fetch_candle_data_by_ccxt_object(self, coin_pair: CoinPair, time_frame: TimeFrame, since_timestamp, limit, hour_offset=0, params={}):
         """通过 CCXT 抓取数据，转为统一格式"""
         data = self.__ccxt_provider.ccxt_object_for_fetching.fetch_ohlcv(
-            coin_pair.pair(), time_frame.value, since_timestamp, limit)
+            coin_pair.formatted(), time_frame.value, since_timestamp, limit)
         df = cf.convert_raw_data_to_data_frame(data, hour_offset=hour_offset)
         return df
 
