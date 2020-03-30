@@ -41,11 +41,15 @@ class CCXTObjectFactory:
     @staticmethod
     def bitfinex_v1_ccxt_object(apiKey, apiSecret):
         ccxt_object = ccxt.bitfinex()
+        ccxt_object.enableRateLimit = True
+        ccxt_object.rateLimit = 10000
         return CCXTObjectFactory._config_ccxt_object(ccxt_object, apiKey, apiSecret)
 
     @staticmethod
     def bitfinex_v2_ccxt_object(apiKey, apiSecret):
         ccxt_object = ccxt.bitfinex2()
+        ccxt_object.enableRateLimit = True
+        ccxt_object.rateLimit = 10000
         return CCXTObjectFactory._config_ccxt_object(ccxt_object, apiKey, apiSecret)
 
 
