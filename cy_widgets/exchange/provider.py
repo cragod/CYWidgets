@@ -56,7 +56,7 @@ class CCXTObjectFactory:
 class CCXTProvider:
     """CCXT 提供类，负责为外提供对应的 CCXT 对象"""
 
-    def __init__(self, api_key, secret, params, exg_type: ExchangeType):
+    def __init__(self, api_key, secret, exg_type: ExchangeType, params={}):
         """
         params:
             'proxies': CCXT Proxies
