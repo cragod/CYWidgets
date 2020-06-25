@@ -42,7 +42,6 @@ class Order:
     type = OrderType.LIMIT
     base_coin_amount = 0
     trade_coin_amount = 0
-    exchange_name = ""  # 交易所
     # 买卖价格系数
     bid_order_price_coefficient = 1.02
     ask_order_price_coefficient = 0.9

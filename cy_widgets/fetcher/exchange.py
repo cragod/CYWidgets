@@ -27,8 +27,7 @@ class ExchangeFetcher:
 
     def __fetch_candle_data_by_one_token(self, coin_pair: CoinPair, time_frame: TimeFrame, since_timestamp, limit, params={}):
         """通过 OneToken 抓取数据，转为统一格式"""
-        exchange_name = re.sub('Fetcher$', '', self.__class__.__name__)
-        data = self.__one_token.fetch_candle_data(exchange_name, coin_pair, time_frame, limit, since_timestamp)
+        data = self.__one_token.fetch_candle_data(coin_pair, time_frame, limit, since_timestamp)
         df = pd.DataFrame(data=data, columns=[COL_CANDLE_BEGIN_TIME, COL_OPEN, COL_HIGH, COL_LOW, COL_CLOSE,
                                               COL_VOLUME])
         return df
