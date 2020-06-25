@@ -69,6 +69,7 @@ class CCXTProvider:
             }, ...]
             'password': '...."
         """
+        self.exchange_type = exg_type
         self.__setup_ccxt_objects(api_key, secret, exg_type, params)
         self.__process_extra_params(params)
 

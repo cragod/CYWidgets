@@ -2,8 +2,18 @@ import time
 
 from abc import ABC, abstractmethod
 from ..exchange.order import *
-from ..exchange.provider import CCXTProvider
+from ..exchange.provider import CCXTProvider, ExchangeType
 from ..logger.trading import TraderLogger
+
+
+class ExchangeOrderExecutorFactory:
+    """用来创建具体的订单执行对象"""
+    @staticmethod
+    def executor(ccxt_provider: CCXTProvider, order: Order, logger: TraderLogger):
+        if ccxt_provider.exchange_type == ExchangeType.Okex:
+            return OkexExchangeOrderExecutor(ccxt_provider, order, logger)
+        # TODO: other exchange
+        return None
 
 
 class BaseExchangeOrderExecutor(ABC):
@@ -15,7 +25,7 @@ class BaseExchangeOrderExecutor(ABC):
     def __init__(self, ccxt_provider: CCXTProvider, order: Order, logger: TraderLogger):
         # API 对象都用外部传入
         self._ccxt_provider = ccxt_provider
-        self._order = Order
+        self._order = order
         self._logger = logger
 
     # MARK: Protect
@@ -82,10 +92,11 @@ class BaseExchangeOrderExecutor(ABC):
                 fetch_times -= 1
                 # 等待下次检查
                 time.sleep(interval)
-                self._logger.log_phase_info('Track Order', 'Remaining: {}'.format(order_info['remaining']))
+                self._logger.log_phase_info('Track Order[Processing]', 'Remaining: {}'.format(order_info['remaining']))
                 # 抓取订单信息
                 order_info = self._ccxt_provider.ccxt_object_for_order.fetch_order(
                     order_id, self._order.coin_pair.formatted())
+                self._logger.log_phase_info('Track Order[Processing]', 'Fetched OrderInfo: {}'.format(order_info))
                 # 完全成交则结束
                 if Order.all_filled(order_info):
                     return order_info
@@ -103,12 +114,12 @@ class BaseExchangeOrderExecutor(ABC):
         if remaining_base_coin_to_cost < minimum_cost:
             # 不够交易
             self._logger.log_phase_info('Buying Signal', '{}({}) not enough to trade.'.format(
-                self.coin_pair.base_coin, self.base_coin_amount))
+                self._order.coin_pair.base_coin, self.base_coin_amount))
             return None
         # 如果目标币已经超出最小交易额，视为已经持仓，不买入
         if bid_price * self._order.trade_coin_amount * self._order.coin_pair.estimated_value_of_base_coin > minimum_cost:
             self._logger.log_phase_info('Buying Signal', 'Already hold {}({})'.format(
-                self.coin_pair.trade_coin, self.trade_coin_amount))
+                self._order.coin_pair.trade_coin, self.trade_coin_amount))
             return None
 
         # 正式下单流程
@@ -123,13 +134,13 @@ class BaseExchangeOrderExecutor(ABC):
                 bid_order_amount = remaining_base_coin_to_cost / bid_order_price
                 # 下单
                 order_info = self._create_order(bid_order_amount, bid_order_price)
-                self._logger.log_exception('Place Order', order_info)
+                self._logger.log_phase_info('Place Order', order_info)
                 # 追踪订单
                 order_info = self._track_order(order_info)
-                self._logger.log_exception('Track Order', order_info)
+                self._logger.log_phase_info('Track Order[Finished]', order_info)
             except Exception:
                 # 报错，直接等待进入下一次尝试
-                self._log_exception('Place Order')
+                self._logger.log_exception('Place Order')
                 retry_times -= 1
                 time.sleep(5)
                 continue
@@ -140,10 +151,10 @@ class BaseExchangeOrderExecutor(ABC):
                 remaining_base_coin_to_cost = remaining_base_coin_to_cost - cost_amount
                 # 当前订单结束，追加到结果列表
                 order_infos.append(order_info)
-                self._log_procedure('Remaining Amount [BUY]', remaining_base_coin_to_cost)
+                self._logger.log_phase_info('Remaining Amount [BUY]', remaining_base_coin_to_cost)
             else:
                 # 没有花费的订单算失败了
-                self._log_procedure('Order Timeout', '{}'.format(retry_times))
+                self._logger.log_phase_info('Order Timeout', '{}'.format(retry_times))
                 retry_times -= 1
             # 等待下一次尝试
             time.sleep(1.5)
@@ -225,3 +236,16 @@ class BaseExchangeOrderExecutor(ABC):
     @abstractmethod
     def handle_close_order_request(self):
         pass
+
+
+class OkexExchangeOrderExecutor(BaseExchangeOrderExecutor):
+    """OK 现货下单逻辑"""
+
+    def handle_long_order_request(self):
+        return self._buying_order()
+
+    def handle_close_order_request(self):
+        return super().handle_close_order_request()
+
+    def handle_short_order_request(self):
+        return super().handle_short_order_request()

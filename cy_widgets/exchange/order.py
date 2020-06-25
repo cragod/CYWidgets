@@ -36,17 +36,24 @@ class Order:
       'fee': None,
     }
     """
-    coin_pair = CoinPair()
-    leverage = 1  # 杠杆
-    side = OrderSide.BUY
-    type = OrderType.LIMIT
-    base_coin_amount = 0
-    trade_coin_amount = 0
-    # 买卖价格系数
-    bid_order_price_coefficient = 1.02
-    ask_order_price_coefficient = 0.9
     # 输出订单
-    result_orders = list()
+    __result_orders = list()
+
+    def __init__(self, coin_pair, base_coin_amount, trade_coin_amount,
+                 leverage=1,
+                 side=OrderSide.BUY,
+                 type=OrderType.LIMIT,
+                 bid_order_price_coefficient=1.01,
+                 ask_order_price_coefficient=0.99):
+        super().__init__()
+        self.coin_pair = coin_pair
+        self.base_coin_amount = base_coin_amount
+        self.trade_coin_amount = trade_coin_amount
+        self.leverage = leverage
+        self.side = side
+        self.type = type
+        self.bid_order_price_coefficient = bid_order_price_coefficient
+        self.ask_order_price_coefficient = ask_order_price_coefficient
 
     @staticmethod
     def fetch_cost_amount(order_info):
@@ -121,3 +128,6 @@ class Order:
         result_order['average'] = average
         # self._log_procedure('Integrate Orders', result_order)
         return result_order
+
+    def append_order(self, order_info):
+        self.__result_orders.append(order_info)
