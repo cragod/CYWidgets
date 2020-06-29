@@ -33,9 +33,9 @@ class TraderLogger:
         phase_name : str
             当前阶段描述
         """
-        msg = """**[{}]**
-**Exchange**: {}
-**Coin Pair**: {}
+        msg = """**[{}]** \n
+**Exchange**: {} \n
+**Coin Pair**: {} \n
 **Exception**: {}""".format(phase_name, self.exchange_name, self.coin_pair_name, traceback.format_exc())
         self.recorder.record_exception(msg)
 
@@ -49,8 +49,8 @@ class TraderLogger:
         content : str
             当前交易信息描述
         """
-        msg = """**[{}]**
-**Exchange**: {}
-**Coin Pair**: {}
+        msg = """**[{}]** \n
+**Exchange**: {} \n
+**Coin Pair**: {} \n
 **Information**: {}""".format(phase_name, self.exchange_name, self.coin_pair_name, content)
         self.recorder.record_procedure(msg)
