@@ -242,7 +242,7 @@ class OkexExchangeOrderExecutor(BaseExchangeOrderExecutor):
     """OK 现货下单逻辑"""
 
     def handle_long_order_request(self):
-        return self._buying_order()
+        return self._buying_order(retry_times=0)
 
     def handle_close_order_request(self):
         return super().handle_close_order_request()
