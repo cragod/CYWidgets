@@ -39,7 +39,9 @@ class Order:
     # 输出订单
     __result_orders = list()
 
-    def __init__(self, coin_pair, base_coin_amount, trade_coin_amount,
+    def __init__(self, coin_pair: CoinPair,
+                 base_coin_amount,
+                 trade_coin_amount,
                  leverage=1,
                  side=OrderSide.BUY,
                  type=OrderType.LIMIT,

@@ -223,6 +223,9 @@ class BaseExchangeOrderExecutor(ABC):
 
     def fetch_min_cost(self):
         """获取最小交易金额"""
+        if self._order.coin_pair.custom_min_cost is not None:
+            # 优先取自定义的最小下单金额
+            return self._order.coin_pair.custom_min_cost
         return self._ccxt_provider.ccxt_object_for_query.load_markets()[self._order.coin_pair.formatted()]['limits']['cost']['min']
 
     @abstractmethod
