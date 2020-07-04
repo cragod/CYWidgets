@@ -1,13 +1,11 @@
-import re
 import time
 import pandas as pd
-
-from cy_components.utils.one_token import OneToken
-from cy_components.utils.coin_pair import CoinPair
-from cy_components.defines.enums import TimeFrame
-from cy_components.helpers.formatter import CandleFormatter as cf
-from cy_components.defines.column_names import *
 from ..exchange.provider import CCXTProvider
+from cy_components.defines.column_names import *
+from cy_components.helpers.formatter import CandleFormatter as cf
+from cy_components.defines.enums import TimeFrame
+from cy_components.utils.coin_pair import CoinPair
+from cy_components.utils.one_token import OneToken
 
 
 class ExchangeFetcher:
