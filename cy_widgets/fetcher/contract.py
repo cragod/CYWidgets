@@ -57,7 +57,6 @@ class OKExContractFetcher(BaseContractFetcher):
             'start': '{}Z'.format(start_date_iso8601.split('+')[0]),
             'granularity': '{}'.format(time_frame.time_interval('s'))
         }
-        print(request_params)
         data = fetching_func(request_params)
         # 结束后转成 +8
         df = CandleFormatter.convert_raw_data_to_data_frame(
