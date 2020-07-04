@@ -32,10 +32,9 @@ class CCXTObjectFactory:
     @staticmethod
     def okex_ccxt_object(apiKey, apiSecret, param):
         ccxt_object = ccxt.okex()
-        password = param['password']
-        if password is None:
-            raise ValueError(str)
-        ccxt_object.password = password
+        password = param.get('password')
+        if password is not None:
+            ccxt_object.password = password
         return CCXTObjectFactory._config_ccxt_object(ccxt_object, apiKey, apiSecret)
 
     @staticmethod
