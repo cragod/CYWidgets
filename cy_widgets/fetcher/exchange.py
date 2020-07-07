@@ -16,11 +16,11 @@ class ExchangeFetcher:
         self.__ccxt_provider = ccxt_provider
         self.__one_token = one_token
 
-    def __fetch_candle_data_by_ccxt_object(self, coin_pair: CoinPair, time_frame: TimeFrame, since_timestamp, limit, hour_offset=8, params={}):
-        """通过 CCXT 抓取数据，转为统一格式，默认时间转 +8 小时"""
+    def __fetch_candle_data_by_ccxt_object(self, coin_pair: CoinPair, time_frame: TimeFrame, since_timestamp, limit, params={}):
+        """通过 CCXT 抓取数据，转为统一格式"""
         data = self.__ccxt_provider.ccxt_object_for_fetching.fetch_ohlcv(
             coin_pair.formatted(), time_frame.value, since_timestamp, limit)
-        df = cf.convert_raw_data_to_data_frame(data, hour_offset=hour_offset)
+        df = cf.convert_raw_data_to_data_frame(data)
         return df
 
     def __fetch_candle_data_by_one_token(self, coin_pair: CoinPair, time_frame: TimeFrame, since_timestamp, limit, params={}):
@@ -95,7 +95,7 @@ class ExchangeFetcher:
             earliest_ts = int(time.mktime(earliest_date.timetuple()))
             fetch_ts = earliest_ts - fetch_lmt * time_frame.time_interval(res_unit='s')
             df = self.__fetch_candle_data_by_ccxt_object(
-                coin_pair, time_frame, fetch_ts * 1000, fetch_lmt, hour_offset=8)
+                coin_pair, time_frame, fetch_ts * 1000, fetch_lmt)
 
             # update to df
             if result_df is None:

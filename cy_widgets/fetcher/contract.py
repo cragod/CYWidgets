@@ -22,13 +22,13 @@ class BaseContractFetcher(ABC):
         NotImplementedError('NotImped')
 
     @abstractmethod
-    def fetch_futures_candle_data(self, coin_pair: CoinPair, time_frame: TimeFrame, since_timestamp, limit, hour_offset=8, params={}):
-        """抓取交割合约数据，转为统一格式，默认时间转 +8 小时"""
+    def fetch_futures_candle_data(self, coin_pair: CoinPair, time_frame: TimeFrame, since_timestamp, limit, params={}):
+        """抓取交割合约数据，转为统一格式"""
         NotImplementedError('NotImped')
 
     @abstractmethod
-    def fetch_perpetual_candle_data(self, coin_pair: CoinPair, time_frame: TimeFrame, since_timestamp, limit, hour_offset=8, params={}):
-        """抓取永续合约数据，转为统一格式，默认时间转 +8 小时"""
+    def fetch_perpetual_candle_data(self, coin_pair: CoinPair, time_frame: TimeFrame, since_timestamp, limit, params={}):
+        """抓取永续合约数据，转为统一格式"""
         NotImplementedError('NotImped')
 
 
@@ -43,13 +43,13 @@ class OKExContractFetcher(BaseContractFetcher):
             'perpetuals': perpetuals
         }
 
-    def fetch_futures_candle_data(self, coin_pair: CoinPair, time_frame: TimeFrame, since_timestamp, limit, hour_offset=8, params={}):
-        return self.__fetch_instrument_candle(coin_pair, time_frame, since_timestamp, limit, hour_offset, params, self._ccxt_provider.ccxt_object_for_fetching.futures_get_instruments_instrument_id_candles)
+    def fetch_futures_candle_data(self, coin_pair: CoinPair, time_frame: TimeFrame, since_timestamp, limit, params={}):
+        return self.__fetch_instrument_candle(coin_pair, time_frame, since_timestamp, limit, params, self._ccxt_provider.ccxt_object_for_fetching.futures_get_instruments_instrument_id_candles)
 
-    def fetch_perpetual_candle_data(self, coin_pair, time_frame, since_timestamp, limit, hour_offset=8, params={}):
-        return self.__fetch_instrument_candle(coin_pair, time_frame, since_timestamp, limit, hour_offset, params, self._ccxt_provider.ccxt_object_for_fetching.swap_get_instruments_instrument_id_candles)
+    def fetch_perpetual_candle_data(self, coin_pair, time_frame, since_timestamp, limit, params={}):
+        return self.__fetch_instrument_candle(coin_pair, time_frame, since_timestamp, limit, params, self._ccxt_provider.ccxt_object_for_fetching.swap_get_instruments_instrument_id_candles)
 
-    def __fetch_instrument_candle(self, coin_pair, time_frame, since_timestamp, limit, hour_offset=8, params={}, fetching_func=None):
+    def __fetch_instrument_candle(self, coin_pair, time_frame, since_timestamp, limit, params={}, fetching_func=None):
         start_date = DateFormatter.convert_timepstamp_to_local_date(since_timestamp).replace(microsecond=0)
         start_date_iso8601 = DateFormatter.convert_date_to_iso8601(start_date, True)  # 请求用 UTC
         request_params = {
@@ -59,6 +59,5 @@ class OKExContractFetcher(BaseContractFetcher):
         }
         data = fetching_func(request_params)
         # 结束后转成 +8
-        df = CandleFormatter.convert_raw_data_to_data_frame(
-            data, hour_offset=hour_offset, from_type=CandleDateFromType.ISO8601)
+        df = CandleFormatter.convert_raw_data_to_data_frame(data, from_type=CandleDateFromType.ISO8601)
         return df
