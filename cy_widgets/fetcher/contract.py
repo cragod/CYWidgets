@@ -1,3 +1,4 @@
+import pytz
 from abc import ABC, abstractmethod
 from ..exchange.provider import *
 from cy_components.utils.coin_pair import *
@@ -51,10 +52,11 @@ class OKExContractFetcher(BaseContractFetcher):
 
     def __fetch_instrument_candle(self, coin_pair, time_frame, since_timestamp, limit, params={}, fetching_func=None):
         start_date = DateFormatter.convert_timepstamp_to_local_date(since_timestamp).replace(microsecond=0)
-        start_date_iso8601 = DateFormatter.convert_date_to_iso8601(start_date, True)  # 请求用 UTC
+        start_date_iso8601 = DateFormatter.convert_date_to_iso8601(
+            start_date.astimezone(tz=pytz.utc).replace(tzinfo=None))  # 请求用 UTC 时间但是不加后缀
         request_params = {
             'instrument_id': coin_pair.formatted('-'),
-            'start': '{}Z'.format(start_date_iso8601.split('+')[0]),
+            'start': '{}Z'.format(start_date_iso8601),
             'granularity': '{}'.format(time_frame.time_interval('s'))
         }
         data = fetching_func(request_params)
