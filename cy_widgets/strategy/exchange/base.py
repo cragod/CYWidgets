@@ -5,7 +5,7 @@ from abc import ABC, abstractproperty
 
 class BaseExchangeStrategy(ABC):
     """交易策略基类"""
-    shortable = False  # 能否做空
+    shortable = True  # 能否做空
     leverage = 1  # 策略杠杆
 
     def __init__(self, *initial_data, **kwargs):

@@ -116,10 +116,4 @@ class BollingExchangeStrategy(BaseExchangeStrategy):
             df.drop([COL_MEDIAN, COL_STD, COL_UPPER, COL_LOWER, COL_SIGNAL_LONG,
                      COL_SIGNAL_SHORT, COL_RSI], axis=1, inplace=True)
 
-        # ===由signal计算出实际的每天持有仓位
-        # signal的计算运用了收盘价，是每根K线收盘之后产生的信号，到第二根开盘的时候才买入，仓位才会改变。
-        df[COL_POS] = df[COL_SIGNAL].shift()
-        df[COL_POS].fillna(method='ffill', inplace=True)
-        df[COL_POS].fillna(value=0, inplace=True)  # 将初始行数的position补全为0
-
         return df

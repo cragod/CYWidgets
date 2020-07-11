@@ -6,13 +6,13 @@ from .base import BaseExchangeStrategy
 
 class RSIExchangeStrategy(BaseExchangeStrategy):
     """RSI交易策略"""
-    bull_rsi = 0
-    bull_rsi_upper = 0
-    bull_rsi_lower = 0
+    bull_rsi = 15
+    bull_rsi_upper = 75
+    bull_rsi_lower = 40
 
-    bear_rsi = 0
-    bear_rsi_upper = 0
-    bear_rsi_lower = 0
+    bear_rsi = 15
+    bear_rsi_upper = 75
+    bear_rsi_lower = 450
 
     ma_long = 1000
     ma_short = 50
@@ -30,6 +30,18 @@ class RSIExchangeStrategy(BaseExchangeStrategy):
     adx_low = 50
 
     def __init__(self, *args, **kwargs):
+        """
+        bull_rsi = 15
+        bull_rsi_upper = 75
+        bull_rsi_lower = 40
+
+        bear_rsi = 15
+        bear_rsi_upper = 75
+        bear_rsi_lower = 45
+
+        ma_long = 1000
+        ma_short = 50
+        """
         super(RSIExchangeStrategy, self).__init__(args, kwargs)
 
     @classmethod
@@ -86,7 +98,6 @@ class RSIExchangeStrategy(BaseExchangeStrategy):
         col_signal_long = 'signal_long'
         col_signal_short = 'signal_short'
         col_signal = 'signal'
-        col_pos = 'pos'
 
         df[col_ma_short] = ta.SMA(df[COL_CLOSE], timeperiod=self.ma_short)
         df[col_ma_long] = ta.SMA(df[COL_CLOSE], timeperiod=self.ma_long)
@@ -131,12 +142,7 @@ class RSIExchangeStrategy(BaseExchangeStrategy):
         df[col_signal] = temp[col_signal]
         if drop_extra_columns:
             df.drop([col_signal_long, col_signal_short, col_rsi_bull,
-                     col_rsi_bear, col_ma_long, col_ma_short], axis=1, inplace=True)
-
-        # ===由signal计算出实际的每天持有仓位
-        # signal的计算运用了收盘价，是每根K线收盘之后产生的信号，到第二根开盘的时候才买入，仓位才会改变。
-        df[col_pos] = df[col_signal].shift()
-        df[col_pos].fillna(method='ffill', inplace=True)
-        df[col_pos].fillna(value=0, inplace=True)  # 将初始行数的position补全为0
+                     col_rsi_bear, col_ma_long, col_ma_short, col_bear_rsi_high,
+                     col_bear_rsi_low, col_bull_rsi_high, col_bull_rsi_low, col_adx], axis=1, inplace=True)
 
         return df
