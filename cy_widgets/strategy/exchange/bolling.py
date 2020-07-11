@@ -23,6 +23,7 @@ class BollingExchangeStrategy(BaseExchangeStrategy):
     rsi_threshold = 0
 
     def __init__(self, *args, **kwargs):
+        """m: Scale; n: Period; rsi_period/rsi_threshold"""
         super(BollingExchangeStrategy, self).__init__(args, kwargs)
 
     @classmethod
@@ -112,7 +113,8 @@ class BollingExchangeStrategy(BaseExchangeStrategy):
         temp = temp[temp[COL_SIGNAL] != temp[COL_SIGNAL].shift(1)]
         df[COL_SIGNAL] = temp[COL_SIGNAL]
         if drop_extra_columns:
-            df.drop([COL_MEDIAN, COL_STD, COL_UPPER, COL_LOWER, COL_SIGNAL_LONG, COL_SIGNAL_SHORT], axis=1, inplace=True)
+            df.drop([COL_MEDIAN, COL_STD, COL_UPPER, COL_LOWER, COL_SIGNAL_LONG,
+                     COL_SIGNAL_SHORT, COL_RSI], axis=1, inplace=True)
 
         # ===由signal计算出实际的每天持有仓位
         # signal的计算运用了收盘价，是每根K线收盘之后产生的信号，到第二根开盘的时候才买入，仓位才会改变。

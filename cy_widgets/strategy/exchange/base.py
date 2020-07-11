@@ -45,5 +45,5 @@ class BaseExchangeStrategy(ABC):
         return True
 
     def calculate_signals(self, df, drop_extra_columns=True):
-        """计算信号"""
+        """计算信号, 统一返回格式[candle_begin_time, open, high, low, close, volume, signal]"""
         raise NotImplementedError('?')
