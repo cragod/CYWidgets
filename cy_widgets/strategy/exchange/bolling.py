@@ -21,9 +21,10 @@ class BollingExchangeStrategy(BaseExchangeStrategy):
     n = 0
     rsi_period = 0
     rsi_threshold = 0
+    open_deviate_threshold = 1.0  # 开仓偏移比例阈值，低于这个比例值才真实开仓，默认 1.0，即不在乎
 
     def __init__(self, *args, **kwargs):
-        """m: Scale; n: Period; rsi_period/rsi_threshold"""
+        """m: Scale; n: Period; rsi_period/rsi_threshold; open_deviate_threshold;"""
         super(BollingExchangeStrategy, self).__init__(args, kwargs)
 
     @classmethod
@@ -35,6 +36,7 @@ class BollingExchangeStrategy(BaseExchangeStrategy):
             {'name': 'n', 'type': 0, 'min': 0, 'max': 1000, 'default': '100'},
             {'name': 'rsi_period', 'type': 0, 'min': 0, 'max': 1000, 'default': '0'},
             {'name': 'rsi_threshold', 'type': 0, 'min': 0, 'max': 100, 'default': '0'},
+            {'name': 'open_deviate_threshold', 'type': 0, 'min': 0, max: 1, 'default': '0'}
         ]
         bolling_schema.extend(base_schema)
         return bolling_schema
@@ -74,7 +76,6 @@ class BollingExchangeStrategy(BaseExchangeStrategy):
         df[COL_STD] = ta.STDDEV(df[COL_CLOSE], timeperiod=n, nbdev=1)  # ddof代表标准差自由度
         df[COL_UPPER] = df[COL_MEDIAN] + m * df[COL_STD]
         df[COL_LOWER] = df[COL_MEDIAN] - m * df[COL_STD]
-
         # 趋势强度
         if rsi_period > 0:
             df[COL_RSI] = ta.RSI(df[COL_CLOSE], timeperiod=rsi_period)
