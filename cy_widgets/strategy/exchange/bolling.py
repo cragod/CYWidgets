@@ -110,11 +110,31 @@ class BollingExchangeStrategy(BaseExchangeStrategy):
         # ===合并做多做空信号，去除重复信号
         df[COL_SIGNAL] = df[[COL_SIGNAL_LONG, COL_SIGNAL_SHORT]].sum(axis=1, min_count=1, skipna=True)
 
+        # # ===填空，周期用时间标记
+        # df.signal.fillna(method='ffill', inplace=True)
+        # df.loc[df.signal != df.shift(1).signal, 'start_time'] = df.candle_begin_time
+        # df.start_time.fillna(method='ffill', inplace=True)
+        # grouped = df.groupby('start_time')
+
+        # def real_signal(df):
+        #     off_percent = self.open_deviate_threshold
+        #     condition_1 = df.signal.notnull()
+        #     condition_2_1 = (df.signal > 0) & ((df.shift(-1)['open'] / df.shift(-1)['median']) < (1 + off_percent))
+        #     condition_2_2 = (df.signal < 0) & ((df.shift(-1)['open'] / df.shift(-1)['median']) > (1 - off_percent))
+        #     condition_2_3 = df.signal == 0
+        #     df.loc[condition_1 & (condition_2_1 | condition_2_2 | condition_2_3), 'real_signal'] = df.signal
+        #     return df
+        # # === 计算真实开仓点
+        # df = grouped.apply(real_signal).fillna(method='ffill')
+
+        # # === 去除重复信号
+        # df.loc[df.real_signal != df.shift(1).real_signal, COL_SIGNAL] = df.real_signal
         temp = df[df[COL_SIGNAL].notnull()][[COL_SIGNAL]]
         temp = temp[temp[COL_SIGNAL] != temp[COL_SIGNAL].shift(1)]
         df[COL_SIGNAL] = temp[COL_SIGNAL]
         if drop_extra_columns:
             df.drop([COL_MEDIAN, COL_STD, COL_UPPER, COL_LOWER, COL_SIGNAL_LONG,
+                     #  COL_SIGNAL_SHORT, COL_RSI, 'real_signal'], axis=1, inplace=True)
                      COL_SIGNAL_SHORT, COL_RSI], axis=1, inplace=True)
 
         return df
