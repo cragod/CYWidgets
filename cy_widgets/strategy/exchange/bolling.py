@@ -43,9 +43,11 @@ class BollingExchangeStrategy(BaseExchangeStrategy):
 
     @property
     def identifier(self):
-        res_str = '%s | %s | %s' % (self.m, self.n, self.leverage)
+        res_str = 'm: %s | n: %s | leverage: %s' % (self.m, self.n, self.leverage)
         if self.rsi_period > 0:
-            res_str = res_str + '| {} | {}'.format(self.rsi_period, self.rsi_threshold)
+            res_str = res_str + '| rsi_period: {} | rsi_threshold: {}'.format(self.rsi_period, self.rsi_threshold)
+        if self.open_deviate_threshold < 1:
+            res_str = res_str + '| open_threshold: {}'.format(self.open_deviate_threshold)
         return res_str
 
     @property
