@@ -67,6 +67,10 @@ class RSIExchangeStrategy(BaseExchangeStrategy):
         return '{} | {} | {} | {} || {}/{} || {}/{}'.format(self.ma_long, self.ma_short, self.bull_rsi, self.bear_rsi, self.bull_rsi_upper, self.bull_rsi_lower, self.bear_rsi_upper, self.bear_rsi_lower)
 
     @property
+    def name(self):
+        return "RSI"
+
+    @property
     def candle_count_for_calculating(self):
         return self.ma_long + 10
 

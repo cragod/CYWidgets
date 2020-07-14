@@ -36,6 +36,11 @@ class BaseExchangeStrategy(ABC):
         raise NotImplementedError('Need a identifier')
 
     @abstractproperty
+    def name(self):
+        """策略名"""
+        raise NotImplementedError('Need a name')
+
+    @abstractproperty
     def candle_count_for_calculating(self):
         """计算策略需要的 K 线根数，用于实盘获取 K 线时参考"""
         raise NotImplementedError
