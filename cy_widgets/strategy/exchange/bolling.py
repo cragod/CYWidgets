@@ -29,6 +29,9 @@ class BollingExchangeStrategy(BaseExchangeStrategy):
         self.m = round(self.m, 4)
         self.open_deviate_threshold = round(self.open_deviate_threshold, 4)
 
+    def __str__(self):
+        return 'bolling_strategy'
+
     @classmethod
     def parameter_schema(cls):
         """整合自身参数和父类参数"""
