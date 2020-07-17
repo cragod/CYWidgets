@@ -21,9 +21,16 @@ class BollingExchangeStrategy(BaseExchangeStrategy):
     n = 0
     rsi_period = 0
     rsi_threshold = 0
+    open_deviate_threshold = 1.0  # 开仓偏移比例阈值，低于这个比例值才真实开仓，默认 1.0，即不在乎
 
     def __init__(self, *args, **kwargs):
+        """m: Scale; n: Period; rsi_period/rsi_threshold; open_deviate_threshold;"""
         super(BollingExchangeStrategy, self).__init__(args, kwargs)
+        self.m = round(self.m, 4)
+        self.open_deviate_threshold = round(self.open_deviate_threshold, 4)
+
+    def __str__(self):
+        return 'bolling_strategy'
 
     @classmethod
     def parameter_schema(cls):
@@ -34,16 +41,26 @@ class BollingExchangeStrategy(BaseExchangeStrategy):
             {'name': 'n', 'type': 0, 'min': 0, 'max': 1000, 'default': '100'},
             {'name': 'rsi_period', 'type': 0, 'min': 0, 'max': 1000, 'default': '0'},
             {'name': 'rsi_threshold', 'type': 0, 'min': 0, 'max': 100, 'default': '0'},
+            {'name': 'open_deviate_threshold', 'type': 0, 'min': 0, max: 1, 'default': '0'}
         ]
         bolling_schema.extend(base_schema)
         return bolling_schema
 
     @property
     def identifier(self):
-        res_str = '%s | %s | %s' % (self.m, self.n, self.leverage)
+        res_str = '| m: %s | n: %s' % (self.m, self.n)
+        if self.leverage != 1:
+            res_str = res_str + ' | leverage: {}'.format(self.leverage)
         if self.rsi_period > 0:
-            res_str = res_str + '| {} | {}'.format(self.rsi_period, self.rsi_threshold)
+            res_str = res_str + ' | rsi_period: {} | rsi_threshold: {}'.format(self.rsi_period, self.rsi_threshold)
+        if self.open_deviate_threshold < 1:
+            res_str = res_str + ' | open_threshold: {}'.format(self.open_deviate_threshold)
+        res_str = res_str + ' |'
         return res_str
+
+    @property
+    def name(self):
+        return "Bolling"
 
     @property
     def candle_count_for_calculating(self):
@@ -73,7 +90,6 @@ class BollingExchangeStrategy(BaseExchangeStrategy):
         df[COL_STD] = ta.STDDEV(df[COL_CLOSE], timeperiod=n, nbdev=1)  # ddof代表标准差自由度
         df[COL_UPPER] = df[COL_MEDIAN] + m * df[COL_STD]
         df[COL_LOWER] = df[COL_MEDIAN] - m * df[COL_STD]
-
         # 趋势强度
         if rsi_period > 0:
             df[COL_RSI] = ta.RSI(df[COL_CLOSE], timeperiod=rsi_period)
@@ -108,16 +124,31 @@ class BollingExchangeStrategy(BaseExchangeStrategy):
         # ===合并做多做空信号，去除重复信号
         df[COL_SIGNAL] = df[[COL_SIGNAL_LONG, COL_SIGNAL_SHORT]].sum(axis=1, min_count=1, skipna=True)
 
-        temp = df[df[COL_SIGNAL].notnull()][[COL_SIGNAL]]
-        temp = temp[temp[COL_SIGNAL] != temp[COL_SIGNAL].shift(1)]
-        df[COL_SIGNAL] = temp[COL_SIGNAL]
-        if drop_extra_columns:
-            df.drop([COL_MEDIAN, COL_STD, COL_UPPER, COL_LOWER, COL_SIGNAL_LONG, COL_SIGNAL_SHORT], axis=1, inplace=True)
+        # ===填空，周期用时间标记
+        df.signal.fillna(method='ffill', inplace=True)
+        df.loc[df.signal != df.shift(1).signal, 'start_time'] = df.candle_begin_time
+        df.start_time.fillna(method='ffill', inplace=True)
+        grouped = df.groupby('start_time')
 
-        # ===由signal计算出实际的每天持有仓位
-        # signal的计算运用了收盘价，是每根K线收盘之后产生的信号，到第二根开盘的时候才买入，仓位才会改变。
-        df[COL_POS] = df[COL_SIGNAL].shift()
-        df[COL_POS].fillna(method='ffill', inplace=True)
-        df[COL_POS].fillna(value=0, inplace=True)  # 将初始行数的position补全为0
+        def real_signal(df):
+            if df.shape[0] == 1:
+                df['real_signal'] = df.signal
+                return df
+            off_percent = self.open_deviate_threshold
+            condition_1 = df.signal.notnull()
+            condition_2_1 = (df.signal > 0) & ((df.shift(-1)[COL_OPEN] / df.shift(-1)[COL_MEDIAN]) < (1 + off_percent))
+            condition_2_2 = (df.signal < 0) & ((df.shift(-1)[COL_OPEN] / df.shift(-1)[COL_MEDIAN]) > (1 - off_percent))
+            condition_2_3 = df.signal == 0
+            df.loc[condition_1 & (condition_2_1 | condition_2_2 | condition_2_3), 'real_signal'] = df.signal
+            return df
+        # === 计算真实开仓点
+        df = grouped.apply(real_signal).fillna(method='ffill')
+
+        # # === 去除重复信号
+        df.loc[df.real_signal.notnull() & (df.real_signal != df.real_signal.shift(1)), 'tmp_signal'] = df.real_signal
+        df[COL_SIGNAL] = df['tmp_signal']
+        if drop_extra_columns:
+            df.drop([COL_MEDIAN, COL_STD, COL_UPPER, COL_LOWER, COL_SIGNAL_LONG,
+                     COL_SIGNAL_SHORT, COL_RSI, 'real_signal', 'start_time', 'tmp_signal'], axis=1, inplace=True)
 
         return df

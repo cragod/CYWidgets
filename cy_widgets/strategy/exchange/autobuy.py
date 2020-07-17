@@ -6,8 +6,7 @@ from .base import BaseExchangeStrategy
 
 class AutoBuyCoinStrategy(BaseExchangeStrategy):
 
-    interval_day = 1  # buying interval
-    start_index = 0  # start index
+    day_of_week = 0  # every monday
     ma_periods = 0  # MA periods
 
     def __init__(self, *args, **kwargs):
@@ -18,8 +17,7 @@ class AutoBuyCoinStrategy(BaseExchangeStrategy):
         """ parameters' schema for selection """
         base_schema = super(cls, cls).parameter_schema()
         abc_schema = [
-            {'name': 'interval_day', 'type': 2, 'min': 1, 'max': 30, 'default': '1'},  # Int
-            {'name': 'start_index', 'type': 2, 'min': 1, 'max': 30, 'default': '1'},  # Int
+            {'name': 'day_of_week', 'type': 2, 'min': 0, 'max': 7, 'default': '0'},  # Int
             {'name': 'ma_periods', 'type': 0, 'min': 0, 'max': 100, 'default': '0'},  # Int
         ]
         abc_schema.extend(base_schema)
@@ -27,19 +25,24 @@ class AutoBuyCoinStrategy(BaseExchangeStrategy):
 
     @property
     def identifier(self):
-        res_str = "{} | {} | {}".format(self.interval_day, self.start_index, self.ma_periods)
+        res_str = "{} | {} ".format(self.day_of_week, self.ma_periods)
         return res_str
+
+    @property
+    def name(self):
+        return 'auto_buy_coin'
 
     @property
     def candle_count_for_calculating(self):
         return self.ma_periods + 10
 
     def available_to_calculate(self, df: pd.DataFrame):
-        return self.interval_day >= 1 and self.start_index >= 0
+        return True
 
     def calculate_signals(self, df: pd.DataFrame, drop_extra_columns=True):
         # Signal
-        df.loc[self.start_index::self.interval_day, COL_SIGNAL] = 1
+        df.loc[df[COL_CANDLE_BEGIN_TIME].dt.dayofweek == self.day_of_week, COL_SIGNAL] = 1
+
         if self.ma_periods > 0:
             col_ma = 'ma'
             col_max = 'max_ratio'

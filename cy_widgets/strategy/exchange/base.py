@@ -5,7 +5,7 @@ from abc import ABC, abstractproperty
 
 class BaseExchangeStrategy(ABC):
     """交易策略基类"""
-    shortable = False  # 能否做空
+    shortable = True  # 能否做空
     leverage = 1  # 策略杠杆
 
     def __init__(self, *initial_data, **kwargs):
@@ -36,6 +36,11 @@ class BaseExchangeStrategy(ABC):
         raise NotImplementedError('Need a identifier')
 
     @abstractproperty
+    def name(self):
+        """策略名"""
+        raise NotImplementedError('Need a name')
+
+    @abstractproperty
     def candle_count_for_calculating(self):
         """计算策略需要的 K 线根数，用于实盘获取 K 线时参考"""
         raise NotImplementedError
@@ -45,5 +50,5 @@ class BaseExchangeStrategy(ABC):
         return True
 
     def calculate_signals(self, df, drop_extra_columns=True):
-        """计算信号"""
+        """计算信号, 统一返回格式[candle_begin_time, open, high, low, close, volume, signal]"""
         raise NotImplementedError('?')
