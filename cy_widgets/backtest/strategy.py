@@ -40,6 +40,7 @@ class StrategyBacktest:
         """执行回测"""
         if self.__strategy.available_to_calculate(self.__df):
             signal_df = self.__strategy.calculate_signals(self.__df)
-            return self.__result_handler(self.__evaluate_func(self.__pos_func(signal_df)), self.__strategy, None)
+            pos_df = self.__pos_func(signal_df)
+            return self.__result_handler(self.__evaluate_func(pos_df), self.__strategy, None)
         else:
             return self.__result_handler(None, 'K 线数量不够计算信号')
