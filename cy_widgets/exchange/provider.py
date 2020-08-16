@@ -2,11 +2,11 @@ import ccxt
 import enum
 
 
-class ExchangeType(enum.Enum):
+class ExchangeType(enum.IntEnum):
     """交易所类型"""
     Bitfinex = 0
-    HuobiPro = 1
-    Okex = 2
+    Okex = 1
+    HuobiPro = 2
     Binance = 3
 
 

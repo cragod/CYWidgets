@@ -12,6 +12,8 @@ class ExchangeOrderExecutorFactory:
     def executor(ccxt_provider: CCXTProvider, order: Order, logger: TraderLogger):
         if ccxt_provider.exchange_type == ExchangeType.Okex:
             return OkexExchangeOrderExecutor(ccxt_provider, order, logger)
+        elif ccxt_provider.exchange_type == ExchangeType.Binance:
+            return BinanceExchangeOrderExecutor(ccxt_provider, order, logger)
         # TODO: other exchange
         return None
 
@@ -109,7 +111,7 @@ class BaseExchangeOrderExecutor(ABC):
     def _buying_order(self, retry_times=3):
         """下单买入，计算一个买入总量，循环下单，直到剩余需要买入的量低于最小下单量为止"""
         minimum_cost = self.fetch_min_cost()
-        _, bid_price = self.fetch_first_ticker()
+        ask_price, bid_price = self.fetch_first_ticker()
         remaining_base_coin_to_cost = self._order.base_coin_amount * self._order.leverage
         if remaining_base_coin_to_cost < minimum_cost:
             # 不够交易
@@ -124,6 +126,8 @@ class BaseExchangeOrderExecutor(ABC):
 
         # 正式下单流程
         order_infos = []  # 结果订单数组
+        self._logger.log_phase_info("Order Check", "to_cost: {} minimum_cost: {} retry_times: {}".format(
+            remaining_base_coin_to_cost, minimum_cost, retry_times))
         # 剩余待下单的量大于最小交易量
         while remaining_base_coin_to_cost > minimum_cost and retry_times >= 0:
             try:
@@ -243,6 +247,19 @@ class BaseExchangeOrderExecutor(ABC):
 
 class OkexExchangeOrderExecutor(BaseExchangeOrderExecutor):
     """OK 现货下单逻辑"""
+
+    def handle_long_order_request(self):
+        return self._buying_order(retry_times=0)
+
+    def handle_close_order_request(self):
+        return super().handle_close_order_request()
+
+    def handle_short_order_request(self):
+        return super().handle_short_order_request()
+
+
+class BinanceExchangeOrderExecutor(BaseExchangeOrderExecutor):
+    """Binance 现货下单逻辑"""
 
     def handle_long_order_request(self):
         return self._buying_order(retry_times=0)
