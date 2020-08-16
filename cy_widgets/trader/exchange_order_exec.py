@@ -82,7 +82,7 @@ class BaseExchangeOrderExecutor(ABC):
 
     # MARK: Private
 
-    def _track_order(self, order_info, interval=3, fetch_times=5):
+    def _track_order(self, order_info, interval=1, fetch_times=5):
         """监控订单，直到交易完成或尝试次数满时取消"""
         try:
             order_id = order_info['id']
@@ -199,7 +199,7 @@ class BaseExchangeOrderExecutor(ABC):
                 time.sleep(5)
                 continue
             # 检查剩余需要买的数量
-            remaining = order_info['remaining']
+            remaining = order_info['remaining'] if order_info is not None else 0
             if math.isclose(remaining, 0):
                 trade_coin_amount_to_sell = remaining
                 # 添加到结果
@@ -265,7 +265,7 @@ class BinanceExchangeOrderExecutor(BaseExchangeOrderExecutor):
         return self._buying_order(retry_times=0)
 
     def handle_close_order_request(self):
-        return super().handle_close_order_request()
+        return self._selling_order(retry_times=0)
 
     def handle_short_order_request(self):
         return super().handle_short_order_request()
