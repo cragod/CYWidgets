@@ -71,7 +71,7 @@ class Order:
     @staticmethod
     def all_filled(order_info):
         """检查是否全成交"""
-        return order_info['remaining'] is not None and math.isclose(int(order_info['remaining']), 0.0)
+        return order_info['remaining'] is not None and math.isclose(order_info['remaining'], 0.0)
 
     @staticmethod
     def set_order_side(order_info, side: OrderSide):
