@@ -115,8 +115,8 @@ class BaseExchangeOrderExecutor(ABC):
         remaining_base_coin_to_cost = self._order.base_coin_amount * self._order.leverage
         if remaining_base_coin_to_cost < minimum_cost:
             # 不够交易
-            self._logger.log_phase_info('Buying Signal', '{}({}) not enough to trade.'.format(
-                self._order.coin_pair.base_coin, self.base_coin_amount))
+            self._logger.log_phase_info('Buying Signal', '{}({}) not enough to cost.'.format(
+                self._order.coin_pair.base_coin, self._order.base_coin_amount))
             return None
         # 如果目标币已经超出最小交易额，视为已经持仓，不买入
         if bid_price * self._order.trade_coin_amount * self._order.coin_pair.estimated_value_of_base_coin > minimum_cost:
