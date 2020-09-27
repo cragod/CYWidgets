@@ -9,6 +9,21 @@ class ExchangeType(enum.IntEnum):
     HuobiPro = 2
     Binance = 3
 
+    @classmethod
+    def from_name(cls, name):
+        """根据交易所名返回具体Type"""
+        fname = name.lower() if isinstance(name, str) else ''
+        if fname in ['binance']:
+            return ExchangeType.Binance
+        elif fname in ['huobi', 'huobipro']:
+            return ExchangeType.HuobiPro
+        elif fname in ['bfx', 'binance']:
+            return ExchangeType.Bitfinex
+        elif fname in ['ok', 'okex']:
+            return ExchangeType.Okex
+        else:
+            return None
+
 
 class CCXTObjectFactory:
     """ CCXT 对象工厂类 """
