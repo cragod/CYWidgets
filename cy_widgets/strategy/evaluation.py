@@ -137,8 +137,9 @@ def transfer_equity_curve_to_trade(equity_curve):
     # =对每次交易进行分组，遍历每笔交易
     trade = pd.DataFrame()  # 计算结果放在trade变量中
 
+    grouped = False
     for _index, group in equity_curve.groupby('start_time'):
-
+        grouped = True
         # 记录每笔交易
         # 本次交易方向
         trade.loc[_index, 'signal'] = group['pos'].iloc[0]
@@ -162,9 +163,10 @@ def transfer_equity_curve_to_trade(equity_curve):
         trade.loc[_index, 'end_equity_curve'] = g.iloc[-1]['equity_curve']
         # 本次交易中资金曲线最低值
         trade.loc[_index, 'min_equity_curve'] = g['equity_curve'].min()
-    trade['end_bar'] = pd.to_datetime(trade.end_bar)
-    trade.index = pd.to_datetime(trade.index)
-    trade.tz_convert('UTC')
+    if grouped:
+        trade['end_bar'] = pd.to_datetime(trade.end_bar)
+        trade.index = pd.to_datetime(trade.index)
+        trade.tz_convert('UTC')
     return trade
 
 
@@ -175,6 +177,28 @@ def strategy_evaluate(equity_curve, trade):
     :param trade: transfer_equity_curve_to_trade的输出结果，每笔交易的df
     :return:
     """
+
+    if len(trade) == 0:
+        return {
+            "累积净值": 0,
+            "年化收益": "0",
+            "最大回撤": "0",
+            "最大回撤开始时间": "",
+            "最大回撤结束时间": "",
+            "年化收益/回撤比": 0,
+            "盈利笔数": 0,
+            "亏损笔数": 0,
+            "胜率": "0%",
+            "每笔交易平均盈亏": "0%",
+            "盈亏收益比": 0,
+            "单笔最大盈利": "0",
+            "单笔最大亏损": "0",
+            "单笔最长持有时间": "0",
+            "单笔最短持有时间": "0",
+            "平均持仓周期": "0",
+            "最大连续盈利笔数": 0,
+            "最大连续亏损笔数": 0,
+        }
 
     # ===新建一个dataframe保存回测指标
     results = pd.DataFrame()
@@ -247,7 +271,6 @@ def strategy_evaluate(equity_curve, trade):
     monthly_return = equity_curve[['equity_change']].resample(rule='M').apply(lambda x: (1 + x).prod() - 1)
 
     json_monthly = json.loads(monthly_return.T.to_json())
-    print(json_monthly)
     # {"1604102400000":{"equity_change":-0.1965637834},"1606694400000":{"equity_change":-0.2367361317},"1609372800000":{"equity_change":0.1857263391}}
     monthly_list = {x: json_monthly[x]["equity_change"] for x in json_monthly.keys()}
     json_result['月收益率'] = monthly_list

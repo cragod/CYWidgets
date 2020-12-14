@@ -4,7 +4,7 @@ from cy_components.defines.column_names import *
 
 class GenericPosition:
     """[candle_begin_time, open, high, low, close, volume, signal]
-    -> [candle_begin_time, open ,high, low, close, volume, position]"""
+    -> [candle_begin_time, open ,high, low, close, volume, signal, position]"""
     @staticmethod
     def calculate_position(df: pd.DataFrame):
         # ===由signal计算出实际的每天持有仓位
