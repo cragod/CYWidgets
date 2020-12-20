@@ -107,16 +107,21 @@ class CCXTProvider:
         """display name"""
         return getattr(self.ccxt_object_for_fetching, 'name')
 
+    @property
+    def markets(self):
+        """all markets"""
+        return self.ccxt_object_for_fetching.load_markets(True)
+
     def __process_extra_params(self, params={}):
         """ccxt object 公共配置流程"""
         # 所有 obj 都设置
         ccxt_objects = [self.__object_4_fetching, self.__object_4_query, self.__object_4_order]
         # 代理参数
         for obj in ccxt_objects:
-            if 'proxies' in params:
-                obj.proxies = params['proxies']
+            for _, (key, value) in enumerate(params.items()):
+                obj.options[key] = value
             # 加载基本数据
-            obj.load_markets()
+            obj.load_markets(True)
             obj.enableRateLimit = True
 
     def __setup_ccxt_objects(self, api_key, secret, exg_type: ExchangeType, param={}):
