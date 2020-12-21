@@ -17,7 +17,7 @@ class ExchangeFetcher:
     def __fetch_candle_data_by_ccxt_object(self, coin_pair: CoinPair, time_frame: TimeFrame, since_timestamp, limit, params={}):
         """通过 CCXT 抓取数据，转为统一格式"""
         data = self.__ccxt_provider.ccxt_object_for_fetching.fetch_ohlcv(
-            coin_pair.formatted(), time_frame.value, since_timestamp, limit)
+            coin_pair.formatted(), time_frame.value, since_timestamp, limit, params)
         df = cf.convert_raw_data_to_data_frame(data)
         return df
 
@@ -45,7 +45,10 @@ class ExchangeFetcher:
         """从结束时间往前推，请求K线"""
         since_ts = dfr.convert_local_date_to_timestamp(end_date)
         since_ts = time_frame.timestamp_backward_offset(since_ts, limit)
-        return self.fetch_historical_candle_data(coin_pair, time_frame, since_ts, limit + 10, params)
+        if limit < 900:
+            return self.fetch_historical_candle_data(coin_pair, time_frame, since_ts, limit + 10, params)
+        else:
+            return self.fetch_real_time_candle_data(coin_pair, time_frame, limit, params)
 
     def fetch_real_time_candle_data(self, coin_pair: CoinPair, time_frame: TimeFrame, limit, params={}):
         """获取实时K线
@@ -87,7 +90,9 @@ class ExchangeFetcher:
             earliest_ts = int(time.mktime(earliest_date.timetuple()))
             fetch_ts = earliest_ts - fetch_lmt * time_frame.time_interval(res_unit='s')
             df = self.__fetch_candle_data_by_ccxt_object(
-                coin_pair, time_frame, fetch_ts * 1000, fetch_lmt)
+                coin_pair, time_frame, fetch_ts * 1000, fetch_lmt, {
+                    'endTime': earliest_ts * 1000
+                })
 
             # update to df
             if result_df is None:
@@ -98,7 +103,8 @@ class ExchangeFetcher:
 
             # check count (count did not increase and not enough)
             if last_count >= result_df.shape[0] and result_df.shape[0] < limit:
-                raise ConnectionError('Fetch candle failed')
+                print("{} 只能抓到 {}".format(coin_pair.formatted(), result_df.shape[0]))
+                return result_df
             else:
                 last_count = result_df.shape[0]
         return result_df
