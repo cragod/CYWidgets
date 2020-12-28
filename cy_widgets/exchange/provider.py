@@ -46,7 +46,11 @@ class CCXTObjectFactory:
 
     @staticmethod
     def okex_ccxt_object(apiKey, apiSecret, param):
-        ccxt_object = ccxt.okex()
+        ccxt_object = ccxt.okex({
+            'timeout': 1000,  # timeout时间短一点
+            'rateLimit': 10,
+            'enableRateLimit': False
+        })
         password = param.get('password')
         if password is not None:
             ccxt_object.password = password

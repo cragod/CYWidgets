@@ -76,7 +76,7 @@ class ExchangeFetcher:
         """        """"""
         result_df = None
         # each time count
-        fetch_lmt = 888
+        fetch_lmt = 200
         # last count
         last_count = 0
 
@@ -91,7 +91,8 @@ class ExchangeFetcher:
             fetch_ts = earliest_ts - fetch_lmt * time_frame.time_interval(res_unit='s')
             df = self.__fetch_candle_data_by_ccxt_object(
                 coin_pair, time_frame, fetch_ts * 1000, fetch_lmt, {
-                    'endTime': earliest_ts * 1000
+                    'endTime': earliest_ts * 1000,
+                    'type': 'Candles'
                 })
 
             # update to df
