@@ -2,37 +2,28 @@ import time
 import pandas as pd
 from ..exchange.provider import CCXTProvider
 from cy_components.defines.column_names import *
-from cy_components.helpers.formatter import CandleFormatter as cf
+from cy_components.helpers.formatter import CandleFormatter as cf, DateFormatter as dfr
 from cy_components.defines.enums import TimeFrame
 from cy_components.utils.coin_pair import CoinPair
-from cy_components.utils.one_token import OneToken
 
 
 class ExchangeFetcher:
     """现货交易的抓取数据类, 统一流程"""
 
-    def __init__(self, ccxt_provider: CCXTProvider, one_token: OneToken = None):
+    def __init__(self, ccxt_provider: CCXTProvider):
         # API 对象都用外部传入
         self.__ccxt_provider = ccxt_provider
-        self.__one_token = one_token
 
     def __fetch_candle_data_by_ccxt_object(self, coin_pair: CoinPair, time_frame: TimeFrame, since_timestamp, limit, params={}):
         """通过 CCXT 抓取数据，转为统一格式"""
         data = self.__ccxt_provider.ccxt_object_for_fetching.fetch_ohlcv(
-            coin_pair.formatted(), time_frame.value, since_timestamp, limit)
+            coin_pair.formatted(), time_frame.value, since_timestamp, limit, params)
         df = cf.convert_raw_data_to_data_frame(data)
-        return df
-
-    def __fetch_candle_data_by_one_token(self, coin_pair: CoinPair, time_frame: TimeFrame, since_timestamp, limit, params={}):
-        """通过 OneToken 抓取数据，转为统一格式"""
-        data = self.__one_token.fetch_candle_data(coin_pair, time_frame, limit, since_timestamp)
-        df = pd.DataFrame(data=data, columns=[COL_CANDLE_BEGIN_TIME, COL_OPEN, COL_HIGH, COL_LOW, COL_CLOSE,
-                                              COL_VOLUME])
         return df
 
     # 公开的业务逻辑
 
-    def fetch_historical_candle_data(self, coin_pair: CoinPair, time_frame: TimeFrame, since_timestamp, limit, params={}, by_ccxt=True):
+    def fetch_historical_candle_data(self, coin_pair: CoinPair, time_frame: TimeFrame, since_timestamp, limit, params={}):
         """获取历史K线数据
 
         Parameters
@@ -47,13 +38,17 @@ class ExchangeFetcher:
             条数
         params : dict, optional
             额外配置
-        by_ccxt : bool, optional
-            使用 ccxt，False 则使用 OneToken, by default True
         """
-        if by_ccxt:
-            return self.__fetch_candle_data_by_ccxt_object(coin_pair, time_frame, since_timestamp, limit, params=params)
+        return self.__fetch_candle_data_by_ccxt_object(coin_pair, time_frame, since_timestamp, limit, params=params)
+
+    def fetch_historical_candle_data_by_end_date(self, coin_pair: CoinPair, time_frame: TimeFrame, end_date, limit, params={}):
+        """从结束时间往前推，请求K线"""
+        since_ts = dfr.convert_local_date_to_timestamp(end_date)
+        since_ts = time_frame.timestamp_backward_offset(since_ts, limit)
+        if limit < 900:
+            return self.fetch_historical_candle_data(coin_pair, time_frame, since_ts, limit + 10, params)
         else:
-            return self.__fetch_candle_data_by_one_token(coin_pair, time_frame, since_timestamp, limit, params)
+            return self.fetch_real_time_candle_data(coin_pair, time_frame, limit, params)
 
     def fetch_real_time_candle_data(self, coin_pair: CoinPair, time_frame: TimeFrame, limit, params={}):
         """获取实时K线
@@ -81,9 +76,11 @@ class ExchangeFetcher:
         """        """"""
         result_df = None
         # each time count
-        fetch_lmt = 888
+        fetch_lmt = 200
         # last count
         last_count = 0
+
+        fetch_lmt = limit if limit < fetch_lmt else fetch_lmt
 
         # loop until enough
         while result_df is None or result_df.shape[0] < limit:
@@ -95,7 +92,10 @@ class ExchangeFetcher:
             earliest_ts = int(time.mktime(earliest_date.timetuple()))
             fetch_ts = earliest_ts - fetch_lmt * time_frame.time_interval(res_unit='s')
             df = self.__fetch_candle_data_by_ccxt_object(
-                coin_pair, time_frame, fetch_ts * 1000, fetch_lmt)
+                coin_pair, time_frame, fetch_ts * 1000, fetch_lmt, {
+                    'endTime': earliest_ts * 1000,
+                    'type': 'Candles'
+                })
 
             # update to df
             if result_df is None:
@@ -106,7 +106,8 @@ class ExchangeFetcher:
 
             # check count (count did not increase and not enough)
             if last_count >= result_df.shape[0] and result_df.shape[0] < limit:
-                raise ConnectionError('Fetch candle failed')
+                print("{} 只能抓到 {}".format(coin_pair.formatted(), result_df.shape[0]))
+                return result_df
             else:
                 last_count = result_df.shape[0]
         return result_df
