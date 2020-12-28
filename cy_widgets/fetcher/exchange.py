@@ -80,6 +80,8 @@ class ExchangeFetcher:
         # last count
         last_count = 0
 
+        fetch_lmt = limit if limit < fetch_lmt else fetch_lmt
+
         # loop until enough
         while result_df is None or result_df.shape[0] < limit:
             earliest_date = pd.datetime.now()
