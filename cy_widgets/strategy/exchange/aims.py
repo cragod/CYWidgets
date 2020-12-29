@@ -14,14 +14,11 @@ class AutoInvestVarietalStrategy(BaseExchangeStrategy):
         super(AutoInvestVarietalStrategy, self).__init__(args, kwargs)
 
     @classmethod
-    def parameter_schema(cls):
-        """ parameters' schema for selection """
-        base_schema = super(cls, cls).parameter_schema()
-        abc_schema = [
-            {'name': 'ma_periods', 'type': 0, 'min': 0, 'max': 100, 'default': '0'},  # Int
-        ]
-        abc_schema.extend(base_schema)
-        return abc_schema
+    def strategy_with(cls, parameters):
+        strategy = AutoInvestVarietalStrategy()
+        strategy.ma_periods = parameters[0]
+        strategy.signal_scale = parameters[1]
+        return strategy
 
     @property
     def identifier(self):

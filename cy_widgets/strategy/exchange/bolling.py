@@ -33,18 +33,14 @@ class BollingExchangeStrategy(BaseExchangeStrategy):
         return 'bolling_strategy'
 
     @classmethod
-    def parameter_schema(cls):
-        """整合自身参数和父类参数"""
-        base_schema = super(cls, cls).parameter_schema()
-        bolling_schema = [
-            {'name': 'm', 'type': 0, 'min': 0, 'max': 10, 'default': '2'},
-            {'name': 'n', 'type': 0, 'min': 0, 'max': 1000, 'default': '100'},
-            {'name': 'rsi_period', 'type': 0, 'min': 0, 'max': 1000, 'default': '0'},
-            {'name': 'rsi_threshold', 'type': 0, 'min': 0, 'max': 100, 'default': '0'},
-            {'name': 'open_deviate_threshold', 'type': 0, 'min': 0, max: 1, 'default': '0'}
-        ]
-        bolling_schema.extend(base_schema)
-        return bolling_schema
+    def strategy_with(cls, parameters):
+        bolling = BollingExchangeStrategy()
+        bolling.m = parameters[0]
+        bolling.n = parameters[1]
+        bolling.rsi_period = parameters[2]
+        bolling.rsi_threshold = parameters[3]
+        bolling.open_deviate_threshold = parameters[4]
+        return bolling
 
     @property
     def identifier(self):

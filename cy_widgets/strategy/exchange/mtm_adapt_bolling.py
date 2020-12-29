@@ -13,6 +13,13 @@ class MTMAdaptBollingStrategy(BaseExchangeStrategy):
     def __str__(self):
         return 'mtm_adapt_bolling_strategy'
 
+    @classmethod
+    def strategy_with(cls, parameters):
+        bolling = MTMAdaptBollingStrategy()
+        bolling.n = int(parameters[0])
+        bolling.scale = int(parameters[1])
+        return bolling
+
     @property
     def identifier(self):
         res_str = '| n: %s | scale: %s' % (self.n, self.scale)
@@ -24,7 +31,7 @@ class MTMAdaptBollingStrategy(BaseExchangeStrategy):
 
     @property
     def candle_count_for_calculating(self):
-        return self.n * self.scale
+        return self.n * self.scale + 10
 
     def available_to_calculate(self, df: pd.DataFrame):
         return df.shape[0] > self.n * self.scale

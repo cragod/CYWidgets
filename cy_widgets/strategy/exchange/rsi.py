@@ -45,21 +45,8 @@ class RSIExchangeStrategy(BaseExchangeStrategy):
         super(RSIExchangeStrategy, self).__init__(args, kwargs)
 
     @classmethod
-    def parameter_schema(cls):
-        """ parameters' schema for selection """
-        base_schema = super(cls, cls).parameter_schema()
-        bolling_schema = [
-            {'name': 'bull_rsi', 'type': 0, 'min': 0, 'max': 100, 'default': '15'},
-            {'name': 'bull_rsi_upper', 'type': 0, 'min': 0, 'max': 100, 'default': '15'},
-            {'name': 'bull_rsi_lower', 'type': 0, 'min': 0, 'max': 100, 'default': '15'},
-            {'name': 'bear_rsi', 'type': 0, 'min': 0, 'max': 100, 'default': '15'},
-            {'name': 'bear_rsi_upper', 'type': 0, 'min': 0, 'max': 100, 'default': '15'},
-            {'name': 'bear_rsi_lower', 'type': 0, 'min': 0, 'max': 100, 'default': '15'},
-            {'name': 'ma_long', 'type': 0, 'min': 15, 'max': 1000, 'default': '1000'},
-            {'name': 'ma_short', 'type': 0, 'min': 10, 'max': 1000, 'default': '50'},
-        ]
-        bolling_schema.extend(base_schema)
-        return bolling_schema
+    def strategy_with(cls, parameters):
+        return RSIExchangeStrategy()
 
     @property
     def identifier(self):

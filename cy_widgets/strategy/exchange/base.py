@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from abc import ABC, abstractproperty
+from abc import ABC, abstractproperty, abstractclassmethod
 
 
 class BaseExchangeStrategy(ABC):
@@ -16,19 +16,9 @@ class BaseExchangeStrategy(ABC):
         for key in kwargs:
             setattr(self, key, kwargs[key])
 
-    @classmethod
-    def parameter_schema(cls):
-        """ 参数的配置选项
-        type {
-            0: Double
-            1: Bool
-            2: Int
-        }
-        """
-        return [
-            {'name': 'leverage', 'type': 0, 'min': 0, 'max': 5, 'default': '1'},
-            {'name': 'shortable', 'type': 1, 'default': '1'}
-        ]
+    @abstractclassmethod
+    def strategy_with(cls, parameters):
+        raise NotImplementedError('初始化参数')
 
     @abstractproperty
     def identifier(self):
