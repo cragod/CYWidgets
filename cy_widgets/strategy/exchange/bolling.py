@@ -148,3 +148,6 @@ class BollingExchangeStrategy(BaseExchangeStrategy):
                      COL_SIGNAL_SHORT, COL_RSI, 'real_signal', 'start_time', 'tmp_signal'], axis=1, inplace=True)
 
         return df
+
+    def calculate_realtime_signals(self, df, avg_price):
+        return self.calculate_signals(df).iloc[-1].signal

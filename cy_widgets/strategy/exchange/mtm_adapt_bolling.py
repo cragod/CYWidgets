@@ -139,3 +139,6 @@ class MTMAdaptBollingStrategy(BaseExchangeStrategy):
         df.drop(['mtm', 'mtm_l', 'mtm_h', 'mtm_c', 'atr', 'z_score', 'c1', 'c2', 'c3', 'tr', 'avg_price', 'wd_atr',
                  'mtm_c3', 'mtm_tr', 'mtm_atr', 'mtm_l_mean', 'mtm_h_mean', 'mtm_c_mean', 'mtm_atr_mean', 'mtm_c2', 'mtm_c1'], axis=1, inplace=True)
         return df
+
+    def calculate_realtime_signals(self, df, avg_price):
+        return self.calculate_signals(df).iloc[-1].signal

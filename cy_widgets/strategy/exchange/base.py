@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from abc import ABC, abstractproperty, abstractclassmethod
+from abc import ABC, abstractproperty, abstractclassmethod, abstractmethod
 
 
 class BaseExchangeStrategy(ABC):
@@ -35,10 +35,17 @@ class BaseExchangeStrategy(ABC):
         """计算策略需要的 K 线根数，用于实盘获取 K 线时参考"""
         raise NotImplementedError
 
+    @abstractmethod
     def available_to_calculate(self, df):
         """检查 K 线数据是否能用于策略计算"""
         return True
 
+    @abstractmethod
     def calculate_signals(self, df, drop_extra_columns=True):
         """计算信号, 统一返回格式[candle_begin_time, open, high, low, close, volume, signal]"""
         raise NotImplementedError('?')
+
+    @abstractmethod
+    def calculate_realtime_signals(self, df, avg_price):
+        """实盘信号"""
+        raise NotImplementedError("?")

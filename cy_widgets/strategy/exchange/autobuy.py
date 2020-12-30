@@ -63,3 +63,6 @@ class AutoBuyCoinStrategy(BaseExchangeStrategy):
         else:
             df[COL_POS] = df[COL_SIGNAL]
         return df
+
+    def calculate_realtime_signals(self, df, avg_price):
+        return self.calculate_signals(df).iloc[-1].signal

@@ -137,3 +137,6 @@ class RSIExchangeStrategy(BaseExchangeStrategy):
                      col_bear_rsi_low, col_bull_rsi_high, col_bull_rsi_low, col_adx], axis=1, inplace=True)
 
         return df
+
+    def calculate_realtime_signals(self, df, avg_price):
+        return self.calculate_signals(df).iloc[-1].signal

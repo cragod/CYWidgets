@@ -66,14 +66,12 @@ class AutoInvestBollingStrategy(BaseExchangeStrategy):
         super(AutoInvestBollingStrategy, self).__init__(args, kwargs)
 
     @classmethod
-    def parameter_schema(cls):
-        """ parameters' schema for selection """
-        base_schema = super(cls, cls).parameter_schema()
-        abc_schema = [
-            {'name': 'ma_periods', 'type': 0, 'min': 0, 'max': 100, 'default': '0'},  # Int
-        ]
-        abc_schema.extend(base_schema)
-        return abc_schema
+    def strategy_with(cls, parameters):
+        aib = AutoInvestBollingStrategy()
+        aib.m = parameters[0]
+        aib.n = int(parameters[1])
+        aib.signal_scale = parameters[2]
+        aib.buy_threshold = parameters[3]
 
     @property
     def identifier(self):
@@ -108,3 +106,6 @@ class AutoInvestBollingStrategy(BaseExchangeStrategy):
         # fillna
         df[COL_SIGNAL].fillna(value=0, inplace=True)
         return df
+
+    def calculate_realtime_signals(self, df, avg_price):
+        return self.calculate_signals(df).iloc[-1].signal
