@@ -13,6 +13,13 @@ class MTMAdaptBollingStrategy(BaseExchangeStrategy):
     def __str__(self):
         return 'mtm_adapt_bolling_strategy'
 
+    @classmethod
+    def strategy_with(cls, parameters):
+        bolling = MTMAdaptBollingStrategy()
+        bolling.n = int(parameters[0])
+        bolling.scale = int(parameters[1])
+        return bolling
+
     @property
     def identifier(self):
         res_str = '| n: %s | scale: %s' % (self.n, self.scale)
@@ -24,7 +31,7 @@ class MTMAdaptBollingStrategy(BaseExchangeStrategy):
 
     @property
     def candle_count_for_calculating(self):
-        return self.n * self.scale
+        return self.n * self.scale + 10
 
     def available_to_calculate(self, df: pd.DataFrame):
         return df.shape[0] > self.n * self.scale
@@ -132,3 +139,6 @@ class MTMAdaptBollingStrategy(BaseExchangeStrategy):
         df.drop(['mtm', 'mtm_l', 'mtm_h', 'mtm_c', 'atr', 'z_score', 'c1', 'c2', 'c3', 'tr', 'avg_price', 'wd_atr',
                  'mtm_c3', 'mtm_tr', 'mtm_atr', 'mtm_l_mean', 'mtm_h_mean', 'mtm_c_mean', 'mtm_atr_mean', 'mtm_c2', 'mtm_c1'], axis=1, inplace=True)
         return df
+
+    def calculate_realtime_signals(self, df, avg_price):
+        return self.calculate_signals(df).iloc[-1].signal

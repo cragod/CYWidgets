@@ -13,15 +13,11 @@ class AutoBuyCoinStrategy(BaseExchangeStrategy):
         super(AutoBuyCoinStrategy, self).__init__(args, kwargs)
 
     @classmethod
-    def parameter_schema(cls):
-        """ parameters' schema for selection """
-        base_schema = super(cls, cls).parameter_schema()
-        abc_schema = [
-            {'name': 'day_of_week', 'type': 2, 'min': 0, 'max': 7, 'default': '0'},  # Int
-            {'name': 'ma_periods', 'type': 0, 'min': 0, 'max': 100, 'default': '0'},  # Int
-        ]
-        abc_schema.extend(base_schema)
-        return abc_schema
+    def strategy_with(cls, parameters):
+        abc = AutoBuyCoinStrategy()
+        abc.day_of_week = parameters[0]
+        abc.ma_periods = parameters[1]
+        return abc
 
     @property
     def identifier(self):
@@ -67,3 +63,6 @@ class AutoBuyCoinStrategy(BaseExchangeStrategy):
         else:
             df[COL_POS] = df[COL_SIGNAL]
         return df
+
+    def calculate_realtime_signals(self, df, avg_price):
+        return self.calculate_signals(df).iloc[-1].signal
