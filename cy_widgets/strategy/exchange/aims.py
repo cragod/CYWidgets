@@ -47,6 +47,9 @@ class AutoInvestVarietalStrategy(BaseExchangeStrategy):
             df[COL_SIGNAL].fillna(value=0, inplace=True)
         return df
 
+    def calculate_realtime_signals(self, df, avg_price):
+        return self.calculate_signals(df).iloc[-1].signal
+
 
 COL_STD = 'std'
 COL_MEDIAN = 'median'
