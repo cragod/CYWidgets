@@ -46,6 +46,6 @@ class BaseExchangeStrategy(ABC):
         raise NotImplementedError('?')
 
     @abstractmethod
-    def calculate_realtime_signals(self, df, avg_price):
+    def calculate_realtime_signals(self, df, avg_price, debug=False):
         """实盘信号"""
         raise NotImplementedError("?")
