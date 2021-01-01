@@ -149,5 +149,5 @@ class BollingExchangeStrategy(BaseExchangeStrategy):
 
         return df
 
-    def calculate_realtime_signals(self, df, avg_price):
+    def calculate_realtime_signals(self, df, avg_price, debug=False):
         return self.calculate_signals(df).iloc[-1].signal
