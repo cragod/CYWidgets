@@ -1,6 +1,6 @@
 import time
 import pandas as pd
-from ..exchange.provider import CCXTProvider
+from ..exchange.provider import *
 from cy_components.defines.column_names import *
 from cy_components.helpers.formatter import CandleFormatter as cf, DateFormatter as dfr
 from cy_components.defines.enums import TimeFrame
@@ -18,7 +18,7 @@ class ExchangeFetcher:
         """通过 CCXT 抓取数据，转为统一格式"""
         data = self.__ccxt_provider.ccxt_object_for_fetching.fetch_ohlcv(
             coin_pair.formatted(), time_frame.value, since_timestamp, limit, params)
-        df = cf.convert_raw_data_to_data_frame(data)
+        df = cf.convert_raw_data_to_data_frame(data, extra_columns_mapping=self.__ccxt_provider.exchange_type.candle_extra_columns_mapping)
         return df
 
     # 公开的业务逻辑
@@ -91,11 +91,12 @@ class ExchangeFetcher:
             # fetch
             earliest_ts = int(time.mktime(earliest_date.timetuple()))
             fetch_ts = earliest_ts - fetch_lmt * time_frame.time_interval(res_unit='s')
+            if self.__ccxt_provider.exchange_type == ExchangeType.Okex:
+                params['type'] = 'Candles'
+            elif self.__ccxt_provider.exchange_type == ExchangeType.BinanceSpotFetching or self.__ccxt_provider.exchange_type == ExchangeType.Binance:
+                params['endTime'] = earliest_ts * 1000
             df = self.__fetch_candle_data_by_ccxt_object(
-                coin_pair, time_frame, fetch_ts * 1000, fetch_lmt, {
-                    'endTime': earliest_ts * 1000,
-                    'type': 'Candles'
-                })
+                coin_pair, time_frame, fetch_ts * 1000, fetch_lmt, params)
 
             # update to df
             if result_df is None:
