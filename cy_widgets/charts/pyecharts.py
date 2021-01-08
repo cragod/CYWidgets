@@ -380,3 +380,76 @@ def god_j_mtm_adapt_bolling_chart(df):
                                 pos_top="80%", height="10%"),
     )
     return grid_chart
+
+# ==================== Aberration + J.Flash
+
+
+def ab_flash_bolling_chart(df):
+    """ab+j.flash chart"""
+
+    # 母布林线上轨、下轨数据
+    uppers = pyecharts_float_values_data(df, 'upper')
+    lowers = pyecharts_float_values_data(df, 'lower')
+    medians = pyecharts_float_values_data(df, 'median')
+    flash_stop_wins = pyecharts_float_values_data(df, 'flash_stop_win')
+    # 信号信息
+    signal_infos = bolling_signals_data(df)
+
+    # k 线
+    p_bolling_line = Line().add_xaxis(
+        xaxis_data=pyecharts_time_data(df)
+    ).add_yaxis(
+        y_axis=uppers,
+        series_name='Upper',
+        markpoint_opts=opts.MarkPointOpts(
+            data=[{'value': info[2], "coord": [info[0], info[1]],
+                   "itemStyle": {"color": info[3]}} for info in signal_infos]
+        ),
+        is_symbol_show=False,
+        label_opts=None,
+        is_smooth=True,
+    ).add_yaxis(
+        y_axis=lowers,
+        series_name='Lower',
+        is_symbol_show=False,
+        label_opts=None,
+        is_smooth=True,
+    ).add_yaxis(
+        y_axis=medians,
+        series_name='Median',
+        is_symbol_show=False,
+        label_opts=None,
+        is_smooth=True,
+    ).add_yaxis(
+        y_axis=flash_stop_wins,
+        series_name='Flash Stop Wins',
+        is_symbol_show=False,
+        label_opts=None,
+        is_smooth=True,
+    )
+
+    ohlc_chart = ohlc_kline_chart(
+        df, x_axis_count=2
+    )
+    ohlc_chart.overlap(p_bolling_line)
+
+    # 资金曲线
+    equity_chart = equity_line_chart(df)
+
+    grid_chart = Grid(init_opts=opts.InitOpts(
+        width="1000px",
+        height="600px",
+        bg_color="#ffffff",
+        animation_opts=opts.AnimationOpts(animation=False),
+    ))
+    grid_chart.add(
+        ohlc_chart,
+        grid_opts=opts.GridOpts(pos_left="10%", pos_right="8%",
+                                pos_top="5%", height="50%"),
+    )
+    grid_chart.add(
+        equity_chart,
+        grid_opts=opts.GridOpts(pos_left="10%", pos_right="8%",
+                                pos_top="70%", height="18%"),
+    )
+    return grid_chart

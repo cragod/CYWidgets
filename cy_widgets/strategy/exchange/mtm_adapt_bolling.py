@@ -140,7 +140,7 @@ class MTMAdaptBollingStrategy(BaseExchangeStrategy):
                  'mtm_c3', 'mtm_tr', 'mtm_atr', 'mtm_l_mean', 'mtm_h_mean', 'mtm_c_mean', 'mtm_atr_mean', 'mtm_c2', 'mtm_c1'], axis=1, inplace=True)
         return df
 
-    def calculate_realtime_signals(self, df, avg_price, debug=False):
+    def calculate_realtime_signals(self, df, debug=False, position_info=None, position_info_save_func=None):
         signal_df = self.calculate_signals(df)
         if debug:
             print(signal_df[-50:])
