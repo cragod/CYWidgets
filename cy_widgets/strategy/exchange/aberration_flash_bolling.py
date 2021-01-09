@@ -1,3 +1,4 @@
+from datetime import datetime
 import numpy as np
 import pandas as pd
 from .base import *
@@ -153,7 +154,7 @@ class AberrationFlashBollingStrategy(BaseExchangeStrategy):
                     ma_dict[ma_temp] = df_ma_temp
 
                 # flash加速均线止盈点记录，用于分析及可视化
-                df.at[i, 'flash_stop_win'] = df_ma_temp.at[i]
+                df.at[i, 'flash_stop_win'] = df_ma_temp.iloc[i]
 
                 # 如果价格达到止盈点
                 if df.at[i, 'close'] < df.at[i, 'flash_stop_win']:
@@ -202,7 +203,7 @@ class AberrationFlashBollingStrategy(BaseExchangeStrategy):
                     ma_dict[ma_temp] = df_ma_temp
 
                 # flash加速均线止盈点记录，用于分析及可视化
-                df.at[i, 'flash_stop_win'] = df_ma_temp.at[i]
+                df.at[i, 'flash_stop_win'] = df_ma_temp.iloc[i]
 
                 # 如果价格达到止盈点
                 if df.at[i, 'close'] > df.at[i, 'flash_stop_win']:
@@ -275,19 +276,28 @@ class AberrationFlashBollingStrategy(BaseExchangeStrategy):
 
         signal = None
 
-        # ===考察是否需要止盈止损 TODO: 读取的
-        info_dict = {
+        # ===考察是否需要止盈止损，有记录就读取
+        info_dict = position_info if position_info is not None else {
             'pre_signal': 0,
             'stop_lose_price': None,
             'holding_times': 0,
             'stop_win_times': 0,
             'stop_win_price': 0
-        }  # 用于记录之前交易信号，止损价格，持仓次数
+        }
+        # 用于记录之前交易信号，止损价格，持仓次数
         # pre_signal：上一次signal
         # stop_lose_price: 开仓后，记录的止损价格
         # holding_times: 开仓后，持仓计数器，计算均线加速用
         # stop_win_times: 开仓后，止盈点产生的次数
         # stop_win_price：开仓后，每次产生的止盈点价格
+
+        def log_if_debug(content):
+            if debug:
+                print('---------------------')
+                print(datetime.now())
+                print(content)
+
+        log_if_debug("strategy info before: {}".format(info_dict))
 
         # 如果之前是空仓
         if info_dict['pre_signal'] == 0:
@@ -301,6 +311,8 @@ class AberrationFlashBollingStrategy(BaseExchangeStrategy):
                 info_dict = {'pre_signal': pre_signal, 'stop_lose_price': stop_lose_price, 'holding_times': 0,
                              'stop_win_times': 0, 'stop_win_price': 0}  # 开多仓后 初始化info_dict
 
+                log_if_debug("0. 开多")
+
             # 当本周期有做空信号
             elif short_condition:
                 signal = -1  # 将真实信号设置为-1
@@ -309,11 +321,15 @@ class AberrationFlashBollingStrategy(BaseExchangeStrategy):
                 stop_lose_price = df.iloc[-1]['close'] * (1 + self.stop_loss_pct / 100 / self.leverage_rate)  # 以本周期的收盘价乘以一定比例作为止损价格
                 info_dict = {'pre_signal': pre_signal, 'stop_lose_price': stop_lose_price, 'holding_times': 0,
                              'stop_win_times': 0, 'stop_win_price': 0}  # 开空仓后 初始化info_dict
+
+                log_if_debug("1. 开空")
             # 无信号
             else:
                 # 无信号，初始化info_dict
                 info_dict = {'pre_signal': 0, 'stop_lose_price': None, 'holding_times': 0, 'stop_win_times': 0,
                              'stop_win_price': 0}
+
+                log_if_debug("2. 无信号")
 
         # 如果之前是多头仓位
         elif info_dict['pre_signal'] == 1:
@@ -326,7 +342,7 @@ class AberrationFlashBollingStrategy(BaseExchangeStrategy):
             df_ma_temp = df['close'].rolling(ma_temp, min_periods=1).mean()
 
             # 如果价格达到止盈点
-            if df.iloc[-1]['close'] < df_ma_temp.at[-1]:
+            if df.iloc[-1]['close'] < df_ma_temp.iloc[-1]:
 
                 # 如果价格超过了上一次止盈点价格，说明上方可能还有空间，则重新开始flash加速，
                 if df.iloc[-1]['close'] > info_dict['stop_win_price'] or info_dict['stop_win_times'] == 0:
@@ -337,9 +353,13 @@ class AberrationFlashBollingStrategy(BaseExchangeStrategy):
                     # flash加速均线的持仓次数清零
                     info_dict['holding_times'] = 0
 
+                    log_if_debug("3. 多，重新加速")
+
                 # 直到利润的尽头才平仓
                 else:
                     signal = 0  # 将真实信号设置为0
+
+                    log_if_debug("4. 平多（下穿加速线）")
 
             # 当本周期有平多仓信号，或者需要止损
             if close_long_condition or (df.iloc[-1]['close'] < info_dict['stop_lose_price']):
@@ -347,6 +367,8 @@ class AberrationFlashBollingStrategy(BaseExchangeStrategy):
                 # 记录相关信息
                 info_dict = {'pre_signal': 0, 'stop_lose_price': None, 'holding_times': 0, 'stop_win_times': 0,
                              'stop_win_price': 0}
+
+                log_if_debug("5. 平多 or 止损")
 
             # 当本周期有平多仓并且还要开空仓
             if short_condition:
@@ -356,6 +378,8 @@ class AberrationFlashBollingStrategy(BaseExchangeStrategy):
                 stop_lose_price = df.iloc[-1]['close'] * (1 + self.stop_loss_pct / 100 / self.leverage_rate)  # 以本周期的收盘价乘以一定比例作为止损价格
                 info_dict = {'pre_signal': pre_signal, 'stop_lose_price': stop_lose_price, 'holding_times': 0,
                              'stop_win_times': 0, 'stop_win_price': 0}
+
+                log_if_debug("6. 平多开空")
 
         # 如果之前是空头仓位
         elif info_dict['pre_signal'] == -1:
@@ -367,15 +391,19 @@ class AberrationFlashBollingStrategy(BaseExchangeStrategy):
             df_ma_temp = df['close'].rolling(ma_temp, min_periods=1).mean()
 
             # 如果价格达到止盈点
-            if df.iloc[-1]['close'] > df_ma_temp.at[-1]:
+            if df.iloc[-1]['close'] > df_ma_temp.iloc[-1]:
                 # 如果价格跌破了上一次止盈点价格，说明下方可能还有空间，则重新开始flash加速，
                 if df.iloc[-1]['close'] < info_dict['stop_win_price'] or info_dict['stop_win_times'] == 0:
                     # 记录最新的止盈点价格
                     info_dict['stop_win_price'] = df.iloc[-1]['close']
                     info_dict['stop_win_times'] = info_dict['stop_win_times'] + 1
                     info_dict['holding_times'] = 0
+
+                    log_if_debug("7. 空，重新加速")
                 else:
                     signal = 0  # 将真实信号设置为0
+
+                    log_if_debug("8. 平空（上穿加速线）")
 
             # 当本周期有平空仓信号，或者需要止损
             if close_short_condition or (df.iloc[-1]['close'] > info_dict['stop_lose_price']):
@@ -383,6 +411,8 @@ class AberrationFlashBollingStrategy(BaseExchangeStrategy):
                 # 记录相关信息
                 info_dict = {'pre_signal': 0, 'stop_lose_price': None, 'holding_times': 0, 'stop_win_times': 0,
                              'stop_win_price': 0}
+
+                log_if_debug("9. 平空 or 止损")
 
             # 当本周期有平空仓并且还要开多仓
             if long_condition == 1:
@@ -394,8 +424,15 @@ class AberrationFlashBollingStrategy(BaseExchangeStrategy):
                 info_dict = {'pre_signal': pre_signal, 'stop_lose_price': stop_lose_price, 'holding_times': 0,
                              'stop_win_times': 0, 'stop_win_price': 0}
 
+                log_if_debug("10. 平空开多")
+
         # 其他情况
         else:
             raise ValueError('不可能出现其他的情况，如果出现，说明代码逻辑有误，报错')
+
+        # 保存信号
+        if position_info_save_func is not None:
+            position_info_save_func(info_dict)
+            log_if_debug("strategy info after: {}".format(info_dict))
 
         return signal
