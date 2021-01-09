@@ -47,7 +47,7 @@ class AutoInvestVarietalStrategy(BaseExchangeStrategy):
             df[COL_SIGNAL].fillna(value=0, inplace=True)
         return df
 
-    def calculate_realtime_signals(self, df, avg_price, debug=False):
+    def calculate_realtime_signals(self, df, debug=False, position_info=None, position_info_save_func=None):
         return self.calculate_signals(df).iloc[-1].signal
 
 
@@ -110,5 +110,5 @@ class AutoInvestBollingStrategy(BaseExchangeStrategy):
         df[COL_SIGNAL].fillna(value=0, inplace=True)
         return df
 
-    def calculate_realtime_signals(self, df, avg_price, debug=False):
+    def calculate_realtime_signals(self, df, debug=False, position_info=None, position_info_save_func=None):
         return self.calculate_signals(df).iloc[-1].signal

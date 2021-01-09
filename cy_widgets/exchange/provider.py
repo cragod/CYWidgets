@@ -8,6 +8,7 @@ class ExchangeType(enum.IntEnum):
     Okex = 1
     HuobiPro = 2
     Binance = 3
+    BinanceSpotFetching = 4
 
     @classmethod
     def from_name(cls, name):
@@ -24,6 +25,17 @@ class ExchangeType(enum.IntEnum):
         else:
             return None
 
+    @property
+    def candle_extra_columns_mapping(self):
+        if self.value == ExchangeType.BinanceSpotFetching:
+            return {
+                6: 'quote_volume',
+                7: 'trade_num',
+                8: 'taker_buy_base_asset_volume',
+                9: 'taker_buy_quote_asset_volume',
+            }
+        return {}
+
 
 class CCXTObjectFactory:
     """ CCXT 对象工厂类 """
@@ -37,6 +49,11 @@ class CCXTObjectFactory:
     @staticmethod
     def binance_ccxt_object(apiKey, apiSecret):
         ccxt_object = ccxt.binance()
+        return CCXTObjectFactory._config_ccxt_object(ccxt_object, apiKey, apiSecret)
+
+    @staticmethod
+    def binance_spot_fetching_ccxt_object(apiKey, apiSecret):
+        ccxt_object = ccxt_binance_fetching()
         return CCXTObjectFactory._config_ccxt_object(ccxt_object, apiKey, apiSecret)
 
     @staticmethod
@@ -133,6 +150,9 @@ class CCXTProvider:
         if exg_type == ExchangeType.Binance:
             self.__object_4_fetching = self.__object_4_query = self.__object_4_order = CCXTObjectFactory.binance_ccxt_object(
                 api_key, secret)
+        elif exg_type == ExchangeType.BinanceSpotFetching:
+            self.__object_4_fetching = self.__object_4_query = self.__object_4_order = CCXTObjectFactory.binance_spot_fetching_ccxt_object(
+                api_key, secret)
         elif exg_type == ExchangeType.HuobiPro:
             self.__object_4_fetching = self.__object_4_query = self.__object_4_order = CCXTObjectFactory.huobipro_ccxt_object(
                 api_key, secret)
@@ -143,3 +163,35 @@ class CCXTProvider:
             self.__object_4_fetching = self.__object_4_order = CCXTObjectFactory.bitfinex_v1_ccxt_object(
                 api_key, secret)
             self.__object_4_query = CCXTObjectFactory.bitfinex_v2_ccxt_object(api_key, secret)
+
+
+class ccxt_binance_fetching(ccxt.binance):
+    def parse_ohlcv(self, ohlcv, market=None):
+        #
+        #     [
+        #         1591478520000,
+        #         "0.02501300",
+        #         "0.02501800",
+        #         "0.02500000",
+        #         "0.02500000",
+        #         "22.19000000",
+        #         1591478579999,
+        #         "0.55490906",
+        #         40,
+        #         "10.92900000",
+        #         "0.27336462",
+        #         "0"
+        #     ]
+        #
+        return [
+            self.safe_integer(ohlcv, 0),
+            self.safe_float(ohlcv, 1),
+            self.safe_float(ohlcv, 2),
+            self.safe_float(ohlcv, 3),
+            self.safe_float(ohlcv, 4),
+            self.safe_float(ohlcv, 5),
+            self.safe_float(ohlcv, 7),  # quote_volume
+            self.safe_float(ohlcv, 8),  # trade_num
+            self.safe_float(ohlcv, 9),  # taker_buy_base_asset_volume
+            self.safe_float(ohlcv, 10),  # taker_buy_quote_asset_volume
+        ]
