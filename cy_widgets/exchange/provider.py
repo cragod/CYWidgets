@@ -48,12 +48,20 @@ class CCXTObjectFactory:
 
     @staticmethod
     def binance_ccxt_object(apiKey, apiSecret):
-        ccxt_object = ccxt.binance()
+        ccxt_object = ccxt.binance({
+            'timeout': 3000,
+            'rateLimit': 10,
+            'enableRateLimit': False
+        })
         return CCXTObjectFactory._config_ccxt_object(ccxt_object, apiKey, apiSecret)
 
     @staticmethod
     def binance_spot_fetching_ccxt_object(apiKey, apiSecret):
-        ccxt_object = ccxt_binance_fetching()
+        ccxt_object = ccxt_binance_fetching({
+            'timeout': 3000,
+            'rateLimit': 10,
+            'enableRateLimit': False
+        })
         return CCXTObjectFactory._config_ccxt_object(ccxt_object, apiKey, apiSecret)
 
     @staticmethod
