@@ -38,10 +38,12 @@ class BinanceNeutralStrategy_1(NeutralStrategyBase):
                 _df[_name + f'_diff_{_diff_d}'] = np.nan  # 数据行数不足12的填充为空数据
 
     def cal_factor(self, df):
-        alpha_factors = ['bias_bh_9_diff_0.7', '涨跌幅_bh_6_diff_0.5']
-        _dna = ['涨跌幅_bh_48_diff_0.3', '振幅_bh_12_diff_0.5', '振幅2_bh_9', 'bias_bh_9_diff_0.7']
+        # alpha_factors = ['bias_bh_9_diff_0.7', '涨跌幅_bh_6_diff_0.5']
+        # _dna = ['涨跌幅_bh_48_diff_0.3', '振幅_bh_12_diff_0.5', '振幅2_bh_9', 'bias_bh_9_diff_0.7']
+        alpha_factors = ['bias_bh_12_diff_0.5', 'bias_bh_9_diff_0.3']
+        _dna = ['振幅_bh_24_diff_0.5', 'bias_bh_60_diff_0.5', '资金流入比例_bh_6_diff_0.7', '振幅_bh_24_diff_0.5']
         # --- bias ---  涨跌幅更好的表达方式 bias 币价偏离均线的比例。
-        for (n, diff_d) in [(9, 0.7)]:
+        for (n, diff_d) in [(12, 0.5), (9, 0.3), (60, 0.5)]:
             ma = df['close'].rolling(n, min_periods=1).mean()
             df[f'bias_bh_{n}'] = (df['close'] / ma - 1)
 
@@ -56,7 +58,7 @@ class BinanceNeutralStrategy_1(NeutralStrategyBase):
             self.__add_diff(_df=df, _diff_d=diff_d, _name=f'涨跌幅_bh_{hour}')
 
         # --- 振幅 ---  最高价最低价
-        for(n, diff_d) in [(12, 0.5)]:
+        for(n, diff_d) in [(24, 0.5)]:
             high = df['high'].rolling(n, min_periods=1).max()
             low = df['low'].rolling(n, min_periods=1).min()
             df[f'振幅_bh_{n}'] = (high / low - 1)
@@ -64,27 +66,25 @@ class BinanceNeutralStrategy_1(NeutralStrategyBase):
             # 差分
             self.__add_diff(_df=df, _diff_d=diff_d, _name=f'振幅_bh_{n}')
 
-        # --- 振幅2 ---  收盘价、开盘价
-        high = df[['close', 'open']].max(axis=1)
-        low = df[['close', 'open']].min(axis=1)
-        for (n, diff_d) in [(9, 0)]:
-            high = high.rolling(n, min_periods=1).max()
-            low = low.rolling(n, min_periods=1).min()
-            df[f'振幅2_bh_{n}'] = (high / low - 1)
+        # --- 资金流入比例 --- 币安独有的数据
+        for(n, diff_d) in [(6, 0.7)]:
+            volume = df['quote_volume'].rolling(n, min_periods=1).sum()
+            buy_volume = df['taker_buy_quote_asset_volume'].rolling(n, min_periods=1).sum()
+            df[f'资金流入比例_bh_{n}'] = (buy_volume / volume)
 
             # 差分
-            self.__add_diff(_df=df, _diff_d=diff_d, _name=f'振幅2_bh_{n}')
+            self.__add_diff(_df=df, _diff_d=diff_d, _name=f'资金流入比例_bh_{n}')
 
-        # n = 34  # 指标的时间窗口参数
-        # df['median'] = df['close'].rolling(window=n, min_periods=1).mean()  # 计算中轨
-        # df['std'] = df['close'].rolling(n, min_periods=1).std(ddof=0)  # 计算标准差
-        # df['m'] = abs(df['close'] - df['median']) / df['std']  # 计算自适应m
-        # df['up'] = df['m'].rolling(window=n, min_periods=1).max().shift(1)  # 计算z_score 上限
-        # df['dn'] = df['m'].rolling(window=n, min_periods=1).min().shift(1)  # 计算z_score 下限
-        # df['upper'] = df['median'] + df['std'] * df['up']  # 计算布林上轨
-        # df['lower'] = df['median'] - df['std'] * df['up']  # 计算布林下轨
-        # df['condition_long'] = (df['close'] >= df['lower'])  # 允许做多的条件：破下轨，不做多
-        # df['condition_short'] = (df['close'] <= df['upper'])  # 允许做空的条件：破上轨，不做空
+        # --- 振幅2 ---  收盘价、开盘价
+        # high = df[['close', 'open']].max(axis=1)
+        # low = df[['close', 'open']].min(axis=1)
+        # for (n, diff_d) in [(9, 0)]:
+        #     high = high.rolling(n, min_periods=1).max()
+        #     low = low.rolling(n, min_periods=1).min()
+        #     df[f'振幅2_bh_{n}'] = (high / low - 1)
+
+        #     # 差分
+        #     self.__add_diff(_df=df, _diff_d=diff_d, _name=f'振幅2_bh_{n}')
 
         df['factor'] = \
             df[alpha_factors[0]] * (df[_dna[0]] + df[_dna[1]]) +\
