@@ -11,8 +11,12 @@ class BinanceNeutralStrategy_1(NeutralStrategyBase):
         return BinanceNeutralStrategy_1(int(parameters[0]), f'{int(parameters[1])}h', float(parameters[2]))
 
     @property
+    def display_name(self):
+        return "BinanceNeutralStrategy_1"
+
+    @property
     def candle_count_4_cal_factor(self):
-        return 70
+        return 35 * 3 + 10
 
     def __add_diff(self, _df, _diff_d, _name, _add=True):
         """ 为 数据列 添加 差分数据列
@@ -70,6 +74,17 @@ class BinanceNeutralStrategy_1(NeutralStrategyBase):
 
             # 差分
             self.__add_diff(_df=df, _diff_d=diff_d, _name=f'振幅2_bh_{n}')
+
+        # n = 34  # 指标的时间窗口参数
+        # df['median'] = df['close'].rolling(window=n, min_periods=1).mean()  # 计算中轨
+        # df['std'] = df['close'].rolling(n, min_periods=1).std(ddof=0)  # 计算标准差
+        # df['m'] = abs(df['close'] - df['median']) / df['std']  # 计算自适应m
+        # df['up'] = df['m'].rolling(window=n, min_periods=1).max().shift(1)  # 计算z_score 上限
+        # df['dn'] = df['m'].rolling(window=n, min_periods=1).min().shift(1)  # 计算z_score 下限
+        # df['upper'] = df['median'] + df['std'] * df['up']  # 计算布林上轨
+        # df['lower'] = df['median'] - df['std'] * df['up']  # 计算布林下轨
+        # df['condition_long'] = (df['close'] >= df['lower'])  # 允许做多的条件：破下轨，不做多
+        # df['condition_short'] = (df['close'] <= df['upper'])  # 允许做空的条件：破上轨，不做空
 
         df['factor'] = \
             df[alpha_factors[0]] * (df[_dna[0]] + df[_dna[1]]) +\
