@@ -4,7 +4,7 @@ import itertools
 import json
 
 
-def generic_statistic_process(df, slippage=1 / 1000, c_rate=5 / 10000, leverage_rate=3, face_value=0.01,
+def generic_statistic_process(df, slippage=1 / 1000, c_rate=5 / 10000, leverage_rate=1, face_value=0.01,
                               min_margin_ratio=1 / 100):
     """整个评价流程"""
     equity_df = equity_curve_for_OKEx_USDT_future_next_open(df.copy())
