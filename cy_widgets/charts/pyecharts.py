@@ -21,7 +21,7 @@ def pyecharts_ohlc_data(df):
 # 基础 K 线
 
 
-def ohlc_kline_chart(df, x_axis_count=2):
+def ohlc_kline_chart(df, x_axis_count=2, signal_infos=[]):
     """创建一个 OHLC K线图，并返回
     :time_series 时间数组
     :ohlc_data   K线数据
@@ -36,6 +36,10 @@ def ohlc_kline_chart(df, x_axis_count=2):
             y_axis=ohlc_data,
             yaxis_index=2,
             itemstyle_opts=opts.ItemStyleOpts(color="#314555", color0="#ec0000", border_color="#314555", border_color0="#ec0000", ),
+            markpoint_opts=opts.MarkPointOpts(
+                data=[{'value': info[2], "coord": [info[0], info[1]],
+                       "itemStyle": {"color": info[3]}} for info in signal_infos]
+            ),
         )
         .set_global_opts(
             legend_opts=opts.LegendOpts(
@@ -401,10 +405,6 @@ def ab_flash_bolling_chart(df):
     ).add_yaxis(
         y_axis=uppers,
         series_name='Upper',
-        markpoint_opts=opts.MarkPointOpts(
-            data=[{'value': info[2], "coord": [info[0], info[1]],
-                   "itemStyle": {"color": info[3]}} for info in signal_infos]
-        ),
         is_symbol_show=False,
         label_opts=None,
         is_smooth=True,
@@ -429,7 +429,7 @@ def ab_flash_bolling_chart(df):
     )
 
     ohlc_chart = ohlc_kline_chart(
-        df, x_axis_count=2
+        df, x_axis_count=2, signal_infos=signal_infos
     )
     ohlc_chart.overlap(p_bolling_line)
 
@@ -446,6 +446,84 @@ def ab_flash_bolling_chart(df):
         ohlc_chart,
         grid_opts=opts.GridOpts(pos_left="10%", pos_right="8%",
                                 pos_top="5%", height="50%"),
+    )
+    grid_chart.add(
+        equity_chart,
+        grid_opts=opts.GridOpts(pos_left="10%", pos_right="8%",
+                                pos_top="70%", height="18%"),
+    )
+    return grid_chart
+
+# ==================== Vix Bolling
+
+
+def vix_bolling_chart(df):
+    """vix bolling"""
+
+    # 母布林线上轨、下轨数据
+    uppers = pyecharts_float_values_data(df, 'up', 6)
+    lowers = pyecharts_float_values_data(df, 'down', 6)
+    medians = pyecharts_float_values_data(df, 'mean', 6)
+    vix = pyecharts_float_values_data(df, 'vix', 6)
+    # 信号信息
+    signal_infos = bolling_signals_data(df)
+
+    # k 线
+    p_bolling_line = Line().add_xaxis(
+        xaxis_data=pyecharts_time_data(df)
+    ).add_yaxis(
+        y_axis=uppers,
+        series_name='Upper',
+        markpoint_opts=opts.MarkPointOpts(
+            data=[{'value': info[2], "coord": [info[0], info[1]],
+                   "itemStyle": {"color": info[3]}} for info in signal_infos]
+        ),
+        is_symbol_show=False,
+        label_opts=None,
+        is_smooth=True,
+    ).add_yaxis(
+        y_axis=lowers,
+        series_name='Lower',
+        is_symbol_show=False,
+        label_opts=None,
+        is_smooth=True,
+    ).add_yaxis(
+        y_axis=medians,
+        series_name='Median',
+        is_symbol_show=False,
+        label_opts=None,
+        is_smooth=True,
+    ).add_yaxis(
+        y_axis=vix,
+        series_name='Vix',
+        is_symbol_show=False,
+        label_opts=None,
+        is_smooth=True,
+    )
+
+    ohlc_chart = ohlc_kline_chart(
+        df, x_axis_count=2, signal_infos=signal_infos
+    )
+    # ohlc_chart.overlap(p_bolling_line)
+
+    # 资金曲线
+    equity_chart = equity_line_chart(df)
+
+    grid_chart = Grid(init_opts=opts.InitOpts(
+        width="1000px",
+        height="600px",
+        bg_color="#ffffff",
+        animation_opts=opts.AnimationOpts(animation=False),
+    ))
+    grid_chart.add(
+        ohlc_chart,
+        grid_opts=opts.GridOpts(pos_left="10%", pos_right="8%",
+                                pos_top="5%", height="30%"),
+    )
+    grid_chart.add(
+        p_bolling_line,
+        grid_opts=opts.GridOpts(pos_left="10%", pos_right="8%",
+                                pos_top="40%", height="20%"),
     )
     grid_chart.add(
         equity_chart,
