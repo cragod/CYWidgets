@@ -162,10 +162,10 @@ def equity_line_chart(df):
     return line_chart
 
 
-def base_kline_grid_chart(df):
+def base_kline_grid_chart(df, signal_infos=[]):
     """ 最最最基础的 K 线图，传入的 df 只需要有 open high low close volume 即可绘制 """
     # OHLC
-    kline_chart = ohlc_kline_chart(df)
+    kline_chart = ohlc_kline_chart(df, signal_infos=signal_infos)
     # Volume
     volume_chart = volume_bar_chart(df)
     # 把 ohlc 和 volume 图组合起来
@@ -522,6 +522,56 @@ def vix_bolling_chart(df):
     )
     grid_chart.add(
         p_bolling_line,
+        grid_opts=opts.GridOpts(pos_left="10%", pos_right="8%",
+                                pos_top="40%", height="20%"),
+    )
+    grid_chart.add(
+        equity_chart,
+        grid_opts=opts.GridOpts(pos_left="10%", pos_right="8%",
+                                pos_top="70%", height="18%"),
+    )
+    return grid_chart
+
+# ============== ICE MA SHRINKAGE
+
+
+def ice_ga_shrinkage_chart(df):
+    """ice ga shrinkage"""
+
+    os_ma = pyecharts_float_values_data(df, 'os_ma', 6)
+    # 信号信息
+    signal_infos = bolling_signals_data(df)
+
+    # k 线
+    ohlc_chart = ohlc_kline_chart(
+        df, x_axis_count=3, signal_infos=signal_infos
+    )
+    # os_ma
+    os_ma_line = Line().add_xaxis(
+        xaxis_data=pyecharts_time_data(df)
+    ).add_yaxis(
+        y_axis=os_ma,
+        series_name='os_ma',
+        is_symbol_show=False,
+        label_opts=None,
+        is_smooth=True,
+    )
+    # 资金曲线
+    equity_chart = equity_line_chart(df)
+
+    grid_chart = Grid(init_opts=opts.InitOpts(
+        width="1000px",
+        height="600px",
+        bg_color="#ffffff",
+        animation_opts=opts.AnimationOpts(animation=False),
+    ))
+    grid_chart.add(
+        ohlc_chart,
+        grid_opts=opts.GridOpts(pos_left="10%", pos_right="8%",
+                                pos_top="5%", height="30%"),
+    )
+    grid_chart.add(
+        os_ma_line,
         grid_opts=opts.GridOpts(pos_left="10%", pos_right="8%",
                                 pos_top="40%", height="20%"),
     )

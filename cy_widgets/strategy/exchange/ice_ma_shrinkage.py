@@ -78,7 +78,7 @@ class IceMAShrinkageStrategy(BaseExchangeStrategy):
         df['signal'] = temp['signal']
 
         # ===删除无关变量
-        df.drop(['s_ma', 'l_wma', 'os', 'os_ma',
+        df.drop(['s_ma', 'l_wma', 'os',
                  'signal_long', 'signal_short'], axis=1, inplace=True)
 
         return df
