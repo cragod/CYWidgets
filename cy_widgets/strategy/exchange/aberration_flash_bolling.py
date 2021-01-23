@@ -43,7 +43,7 @@ class AberrationFlashBollingStrategy(BaseExchangeStrategy):
         return self.n + 10
 
     def available_to_calculate(self, df):
-        return df.shape[0] > self.n + 10
+        return df.shape[0] >= self.candle_count_for_calculating
 
     def calculate_signals(self, df, drop_extra_columns=True):
         """计算信号, 统一返回格式[candle_begin_time, open, high, low, close, volume, signal]"""
