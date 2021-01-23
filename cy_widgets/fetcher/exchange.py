@@ -91,8 +91,13 @@ class ExchangeFetcher:
             # fetch
             earliest_ts = int(time.mktime(earliest_date.timetuple()))
             fetch_ts = earliest_ts - fetch_lmt * time_frame.time_interval(res_unit='s')
+            # OKEx
             if self.__ccxt_provider.exchange_type == ExchangeType.Okex:
-                params['type'] = 'Candles'
+                if limit > 1000 and coin_pair.trade_coin.upper() in ['BTC', 'ETH', 'LTC', 'ETC', 'XRP', 'EOS', 'BCH', 'BSV', 'TRX']:
+                    params['type'] = 'HistoryCandles'
+                    fetch_lmt = 300
+                else:
+                    params['type'] = 'Candles'
             elif self.__ccxt_provider.exchange_type == ExchangeType.BinanceSpotFetching or self.__ccxt_provider.exchange_type == ExchangeType.Binance:
                 params['endTime'] = earliest_ts * 1000
             df = self.__fetch_candle_data_by_ccxt_object(
