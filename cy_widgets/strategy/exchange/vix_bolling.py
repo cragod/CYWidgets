@@ -39,7 +39,7 @@ class VixBollingStrategy(BaseExchangeStrategy):
         return self.n * 2 + 10
 
     def available_to_calculate(self, df: pd.DataFrame):
-        return df.shape[0] >= self.candle_count_for_calculating
+        return df.shape[0] >= self.candle_count_for_calculating - 10
 
     def calculate_signals(self, df: pd.DataFrame, drop_extra_columns=True):
         n = self.n

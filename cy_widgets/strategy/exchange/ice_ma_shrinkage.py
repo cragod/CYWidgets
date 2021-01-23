@@ -40,7 +40,7 @@ class IceMAShrinkageStrategy(BaseExchangeStrategy):
         return max(self.long_ma, self.gap_ma) * 2 + 10
 
     def available_to_calculate(self, df):
-        return df.shape[0] >= self.candle_count_for_calculating and self.long_ma > self.short_ma
+        return df.shape[0] >= self.candle_count_for_calculating and self.long_ma > self.short_ma - 10
 
     def calculate_signals(self, df, drop_extra_columns=True):
         '''
