@@ -9,7 +9,6 @@ from .base import BaseExchangeStrategy
 class VixBollingStrategy(BaseExchangeStrategy):
     """布林线交易策略"""
     n = 0
-    stop_loss_pct = 100
 
     def __init__(self, *args, **kwargs):
         super(VixBollingStrategy, self).__init__(args, kwargs)
@@ -21,7 +20,6 @@ class VixBollingStrategy(BaseExchangeStrategy):
     def strategy_with(cls, parameters):
         bolling = VixBollingStrategy()
         bolling.n = int(parameters[0])
-        bolling.stop_loss_pct = parameters[1]
         return bolling
 
     @property
@@ -69,14 +67,12 @@ class VixBollingStrategy(BaseExchangeStrategy):
         condition2 = df['vix'].shift(1) >= df['down'].shift(1)
         df.loc[condition1 & condition2, 'signal_short'] = -1
 
-        self.process_stop_lose(df, self.stop_loss_pct)
-
-        # # ===合并做多做空信号，去除重复信号
-        # df['signal'] = df[['signal_long', 'signal_short']].sum(axis=1, min_count=1, skipna=True)  # 若你的pandas版本是最新的，请使用本行代码代替上面一行
-        # temp = df[df['signal'].notnull()][['signal']]
-        # # # === 去除重复信号
-        # temp = temp[temp['signal'] != temp['signal'].shift(1)]
-        # df['signal'] = temp['signal']
+        # ===合并做多做空信号，去除重复信号
+        df['signal'] = df[['signal_long', 'signal_short']].sum(axis=1, min_count=1, skipna=True)  # 若你的pandas版本是最新的，请使用本行代码代替上面一行
+        temp = df[df['signal'].notnull()][['signal']]
+        # # === 去除重复信号
+        temp = temp[temp['signal'] != temp['signal'].shift(1)]
+        df['signal'] = temp['signal']
 
         return df
 
