@@ -21,11 +21,6 @@ class BaseExchangeStrategy(ABC):
         raise NotImplementedError('初始化参数')
 
     @abstractproperty
-    def identifier(self):
-        """当前策略的标识串"""
-        raise NotImplementedError('Need a identifier')
-
-    @abstractproperty
     def name(self):
         """策略名"""
         raise NotImplementedError('Need a name')

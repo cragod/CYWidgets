@@ -6,3 +6,4 @@ from .sb_ma_gap_bolling import *
 from .sb_atr_bolling import *
 from .ice_ma_shrinkage import *
 from .vix_bolling import *
+from .stop_win_bolling import *

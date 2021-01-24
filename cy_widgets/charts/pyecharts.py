@@ -502,7 +502,7 @@ def vix_bolling_chart(df):
     )
 
     ohlc_chart = ohlc_kline_chart(
-        df, x_axis_count=2, signal_infos=signal_infos
+        df, x_axis_count=3, signal_infos=signal_infos
     )
     # ohlc_chart.overlap(p_bolling_line)
 
