@@ -1,5 +1,7 @@
-import pandas as pd
 import pytz
+import pandas as pd
+import numpy as np
+from fracdiff import fdiff
 from abc import abstractmethod, abstractproperty, abstractclassmethod
 from datetime import datetime, timedelta
 
@@ -27,6 +29,25 @@ class NeutralStrategyBase:
     @abstractmethod
     def cal_factor(self, df):
         raise NotImplementedError('计算后需要保证有 factor 列作为alpha')
+
+    def _add_diff(self, _df, _diff_d, _name, _add=True):
+        """ 为 数据列 添加 差分数据列
+        :param _add:
+        :param _df: 原数据 DataFrame
+        :param _d_list: 差分阶数 [0.3, 0.5, 0.7]
+        :param _name: 需要添加 差分值 的数据列 名称
+        :param _agg_dict:
+        :param _agg_type:
+        :param _add:
+        :return: """
+        if _add:
+            if len(_df) >= 12:  # 数据行数大于等于12才进行差分操作
+                _diff_ar = fdiff(_df[_name], n=_diff_d, window=10, mode="valid")  # 列差分，不使用未来数据
+                _paddings = len(_df) - len(_diff_ar)  # 差分后数据长度变短，需要在前面填充多少数据
+                _diff = np.nan_to_num(np.concatenate((np.full(_paddings, 0), _diff_ar)), nan=0)  # 将所有nan替换为0
+                _df[_name + f'_diff_{_diff_d}'] = _diff  # 将差分数据记录到 DataFrame
+            else:
+                _df[_name + f'_diff_{_diff_d}'] = np.nan  # 数据行数不足12的填充为空数据
 
     def cal_factor_and_select_coins(self, candle_df_dictionay, run_time):
         # 获取策略参数
