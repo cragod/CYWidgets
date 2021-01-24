@@ -76,11 +76,11 @@ class BinanceNeutralStrategy_2(NeutralStrategyBase):
     @classmethod
     def strategy_with_parameters(cls, parameters):
         """初始化"""
-        return BinanceNeutralStrategy_1(int(parameters[0]), f'{int(parameters[1])}h', float(parameters[2]))
+        return BinanceNeutralStrategy_2(int(parameters[0]), f'{int(parameters[1])}h', float(parameters[2]))
 
     @property
     def display_name(self):
-        return "BinanceNeutralStrategy_1"
+        return "BinanceNeutralStrategy_2"
 
     @property
     def candle_count_4_cal_factor(self):
