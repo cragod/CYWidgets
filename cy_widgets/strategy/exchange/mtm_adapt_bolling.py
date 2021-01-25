@@ -21,11 +21,6 @@ class MTMAdaptBollingStrategy(BaseExchangeStrategy):
         return bolling
 
     @property
-    def identifier(self):
-        res_str = '| n: %s | scale: %s' % (self.n, self.scale)
-        return res_str
-
-    @property
     def name(self):
         return "MTMAdaptBolling"
 
@@ -85,9 +80,7 @@ class MTMAdaptBollingStrategy(BaseExchangeStrategy):
         indicator = 'mtm_mean'
 
         # mtm_mean指标分别乘以三个波动率因子
-        df[indicator] = df[indicator] * df['mtm_atr']
-        df[indicator] = df[indicator] * df['mtm_atr_mean']
-        df[indicator] = df[indicator] * df['wd_atr']
+        df[indicator] = 1e5 * df['mtm_atr'] * df['mtm_atr_mean'] * df['wd_atr'] * df[indicator]
 
         # 对新策略因子计算自适应布林
         df['median'] = df[indicator].rolling(window=n1).mean()

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import numpy as np
+import talib as ta
 from abc import ABC, abstractproperty, abstractclassmethod, abstractmethod
 
 
