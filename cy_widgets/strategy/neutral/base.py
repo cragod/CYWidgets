@@ -8,6 +8,8 @@ from datetime import datetime, timedelta
 
 class NeutralStrategyBase:
 
+    _add_bolling_adapt_filter = True
+
     def __init__(self, select_coin_num, hold_period, leverage):
         self.select_coin_num = select_coin_num
         self.leverage = leverage
@@ -75,19 +77,25 @@ class NeutralStrategyBase:
                 period_df['offset'] = offset
                 # 保存策略信息到结果当中
                 period_df['key'] = f'{hold_period}_{offset}H'  # 创建主键值
-                # 截取指定周期的数据
-                n = 34
-                period_df['close_shift'] = period_df['close'].shift(1)
-                period_df['median'] = period_df['close_shift'].rolling(window=n).mean()
-                period_df['std'] = period_df['close_shift'].rolling(n, min_periods=1).std(ddof=0)  # ddof代表标准差自由度
-                period_df['z_score'] = abs(period_df['close_shift'] - period_df['median']) / period_df['std']
-                period_df['up'] = period_df['z_score'].rolling(window=n, min_periods=1).max().shift(1)
-                period_df['dn'] = period_df['z_score'].rolling(window=n, min_periods=1).min().shift(1)
-                period_df['upper'] = period_df['median'] + period_df['std'] * period_df['up']
-                period_df['lower'] = period_df['median'] - period_df['std'] * period_df['up']
-                period_df['condition_long'] = period_df['close_shift'] >= period_df['lower']  # 破下轨，不做多
-                period_df['condition_short'] = period_df['close_shift'] <= period_df['upper']  # 破上轨，不做空
+                # 是否需要添加布林过滤
+                if self._add_bolling_adapt_filter:
+                    n = 34
+                    period_df['close_shift'] = period_df['close'].shift(1)
+                    period_df['median'] = period_df['close_shift'].rolling(window=n).mean()
+                    period_df['std'] = period_df['close_shift'].rolling(n, min_periods=1).std(ddof=0)  # ddof代表标准差自由度
+                    period_df['z_score'] = abs(period_df['close_shift'] - period_df['median']) / period_df['std']
+                    period_df['up'] = period_df['z_score'].rolling(window=n, min_periods=1).max().shift(1)
+                    period_df['dn'] = period_df['z_score'].rolling(window=n, min_periods=1).min().shift(1)
+                    period_df['upper'] = period_df['median'] + period_df['std'] * period_df['up']
+                    period_df['lower'] = period_df['median'] - period_df['std'] * period_df['up']
+                    period_df['condition_long'] = period_df['close_shift'] >= period_df['lower']  # 破下轨，不做多
+                    period_df['condition_short'] = period_df['close_shift'] <= period_df['upper']  # 破上轨，不做空
+                else:
+                    # 不开过滤就都可以开仓
+                    period_df['condition_long'] = True
+                    period_df['condition_short'] = True
 
+                # 截取指定周期的数据
                 run_time = run_time.astimezone(tz=pytz.utc)
                 period_df = period_df[
                     (period_df['s_time'] <= run_time - timedelta(hours=int(hold_period[:-1]))) &
