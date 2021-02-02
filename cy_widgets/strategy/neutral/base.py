@@ -1,6 +1,7 @@
 import pytz
 import pandas as pd
 import numpy as np
+import talib as ta
 from fracdiff import fdiff
 from abc import abstractmethod, abstractproperty, abstractclassmethod
 from datetime import datetime, timedelta
@@ -8,7 +9,8 @@ from datetime import datetime, timedelta
 
 class NeutralStrategyBase:
 
-    _add_bolling_adapt_filter = True
+    # 过滤条件不完善，先不用
+    _add_bolling_adapt_filter = False
 
     def __init__(self, select_coin_num, hold_period, leverage):
         self.select_coin_num = select_coin_num
@@ -80,12 +82,11 @@ class NeutralStrategyBase:
                 # 是否需要添加布林过滤
                 if self._add_bolling_adapt_filter:
                     n = 34
-                    period_df['close_shift'] = period_df['close'].shift(1)
-                    period_df['median'] = period_df['close_shift'].rolling(window=n).mean()
+                    period_df['close_shift'] = period_df['close']
+                    period_df['median'] = period_df['close_shift'].rolling(window=n, min_periods=1).mean()
                     period_df['std'] = period_df['close_shift'].rolling(n, min_periods=1).std(ddof=0)  # ddof代表标准差自由度
                     period_df['z_score'] = abs(period_df['close_shift'] - period_df['median']) / period_df['std']
                     period_df['up'] = period_df['z_score'].rolling(window=n, min_periods=1).max().shift(1)
-                    period_df['dn'] = period_df['z_score'].rolling(window=n, min_periods=1).min().shift(1)
                     period_df['upper'] = period_df['median'] + period_df['std'] * period_df['up']
                     period_df['lower'] = period_df['median'] - period_df['std'] * period_df['up']
                     period_df['condition_long'] = period_df['close_shift'] >= period_df['lower']  # 破下轨，不做多
@@ -115,8 +116,10 @@ class NeutralStrategyBase:
         # 关于rank的first参数的说明https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.rank.html
         # 删除不要的币
         df['方向'] = 0
-        df.loc[(df['rank'] <= selected_coin_num) & (df['condition_long'] == True), '方向'] = 1
-        df.loc[((df['币总数'] - df['rank']) < selected_coin_num) & (df['condition_short'] == True), '方向'] = -1
+        df.loc[(df['rank'] <= selected_coin_num) & df['condition_long'], '方向'] = 1
+        print(df[(df['rank'] <= selected_coin_num) & df['condition_long']])
+        df.loc[((df['币总数'] - df['rank']) < selected_coin_num) & df['condition_short'], '方向'] = -1
+        print(df[((df['币总数'] - df['rank']) < selected_coin_num) & df['condition_short']])
         df = df[df['方向'] != 0]
 
         # ===将每个币种的数据保存到dict中

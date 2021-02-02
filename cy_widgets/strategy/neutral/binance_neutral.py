@@ -14,7 +14,7 @@ class BinanceNeutralStrategy_1(NeutralStrategyBase):
 
     @property
     def candle_count_4_cal_factor(self):
-        return 35 * 3 + 10
+        return 35 * 3 * 2 + 10
 
     def cal_factor(self, df):
         # alpha_factors = ['bias_bh_9_diff_0.7', '涨跌幅_bh_6_diff_0.5']
@@ -84,7 +84,7 @@ class BinanceNeutralStrategy_2(NeutralStrategyBase):
 
     @property
     def candle_count_4_cal_factor(self):
-        return 35 * 3 + 10
+        return 35 * 3 * 2 + 10
 
     def cal_factor(self, df):
         alpha_factors = ['bias_bh_12_diff_0.5', '涨跌幅_bh_3_diff_0.3']
@@ -142,4 +142,41 @@ class BinanceNeutralStrategy_2(NeutralStrategyBase):
         df['factor'] = \
             df[alpha_factors[0]] * (df[_dna[0]] + df[_dna[1]]) +\
             df[alpha_factors[1]] * (df[_dna[2]] + df[_dna[3]])
+        return df
+
+
+class BinanceNeutralCCIGAPStrategy(NeutralStrategyBase):
+
+    @classmethod
+    def strategy_with_parameters(cls, parameters):
+        """初始化"""
+        return BinanceNeutralCCIGAPStrategy(int(parameters[0]), f'{int(parameters[1])}h', float(parameters[2]))
+
+    @property
+    def display_name(self):
+        return "BinanceNeutralCCIGAPStrategy"
+
+    @property
+    def candle_count_4_cal_factor(self):
+        return 48 * 3 * 2 + 10
+
+    def cal_factor(self, df):
+        # -- 48H CCI Factor--
+        n = 48
+        oma = ta.WMA(df.open, n)
+        hma = ta.WMA(df.high, n)
+        lma = ta.WMA(df.low, n)
+        cma = ta.WMA(df.close, n)
+        tp = (hma + lma + cma + oma) / 4
+        ma = ta.WMA(tp, n)
+        md = ta.WMA(abs(cma - ma), n)
+
+        df[f'CCI_bh_{n}'] = (tp - ma) / md
+
+        # ---- GapTrue ----
+        ma = df['close'].rolling(window=n, min_periods=1).mean()
+        gap = cma - ma
+        df[f'GapTrue_bh_{n}'] = gap / abs(gap).rolling(window=n).sum()
+
+        df['factor'] = - 9 * df['CCI_bh_48'] + 77 * df['GapTrue_bh_48']
         return df
