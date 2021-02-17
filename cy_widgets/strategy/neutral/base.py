@@ -53,6 +53,14 @@ class NeutralStrategyBase:
             else:
                 _df[_name + f'_diff_{_diff_d}'] = np.nan  # 数据行数不足12的填充为空数据
 
+    def cal_compound_factors(self, df):
+        """ 横截面计算步骤 """
+        return None
+
+    def update_agg_dict(self, agg_dict):
+        """ 横截面需要更新 agg """
+        return None
+
     def cal_factor_and_select_coins(self, candle_df_dictionay, run_time):
         # 获取策略参数
         hold_period = self.hold_period
@@ -72,6 +80,10 @@ class NeutralStrategyBase:
             df['e_time'] = df['candle_begin_time']
             df.set_index('candle_begin_time', inplace=True)
             agg_dict = {'symbol': 'first', 's_time': 'first', 'e_time': 'last', 'close': 'last', 'factor': 'last'}
+
+            # = Aggregattion dictionary
+            self.update_agg_dict(agg_dict)
+
             # 转换生成每个策略所有offset的因子
             for offset in range(int(hold_period[:-1])):
                 # 转换周期
@@ -108,6 +120,9 @@ class NeutralStrategyBase:
         # ===将不同offset的数据，合并到一张表
         df = pd.concat(period_df_list)
         df = df.sort_values(['s_time', 'symbol'])
+
+        # ===计算横截面 Factor（按需）
+        self.cal_compound_factors(df)
 
         # ===选币数据整理完成，接下来开始选币
         # 多空双向rank

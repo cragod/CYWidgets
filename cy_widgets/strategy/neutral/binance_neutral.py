@@ -1,4 +1,5 @@
 from .base import *
+from cy_widgets.neutral.neutral_indicators import *
 
 
 class BinanceNeutralStrategy_1(NeutralStrategyBase):
@@ -180,3 +181,45 @@ class BinanceNeutralCCIGAPStrategy(NeutralStrategyBase):
 
         df['factor'] = - 9 * df['CCI_bh_48'] + 77 * df['GapTrue_bh_48']
         return df
+
+
+class BinanceNeutralPMOGAPREGStrategy(NeutralStrategyBase):
+    # ('pmo', True, 3, 1), ('gap', True, 24, 0.4), ('reg', False, 12, 0.7)
+
+    @classmethod
+    def strategy_with_parameters(cls, parameters):
+        """初始化"""
+        return BinanceNeutralPMOGAPREGStrategy(int(parameters[0]), f'{int(parameters[1])}h', float(parameters[2]))
+
+    @property
+    def display_name(self):
+        return "BinanceNeutralPMOGAPREGStrategy"
+
+    @property
+    def candle_count_4_cal_factor(self):
+        return 350
+
+    def cal_factor(self, df):
+        # ('pmo', True, 3, 1), ('gap', True, 24, 0.4), ('reg', False, 12, 0.7)
+        # pmo
+        pmo_indicator(df, [3], False)
+        df['pmo_factor'] = -df['pmo_bh_3']
+        # gap
+        gap_indicator(df, [24], False)
+        df['gap_factor'] = -df['gap_bh_24']
+        # reg
+        reg_indicator(df, [12], False)
+        df['reg_factor'] = df['reg_bh_12']
+        # 横截面这里没有 factor，先给0
+        df['factor'] = 0
+        return df
+
+    def update_agg_dict(self, agg_dict):
+        agg_dict['pmo_factor'] = 'last'
+        agg_dict['gap_factor'] = 'last'
+        agg_dict['reg_factor'] = 'last'
+
+    def cal_compound_factors(self, df):
+        """ 横截面计算步骤 """
+        for f, w in [('pmo', 1), ('gap', 0.4), ('reg', 0.7)]:
+            df['factor'] += df.groupby('s_time')[f + '_factor'].rank() * w

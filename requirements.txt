@@ -2,3 +2,4 @@ ccxt>=1.39.49
 pandas>=0.24.2
 numpy>=1.18.2
 pyecharts>=1.9.0
+sklearn>=0.0

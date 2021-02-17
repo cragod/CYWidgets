@@ -193,7 +193,7 @@ def vma_indicator(df, back_hour_list, need_shift, extra_agg_dict={}):
 
 
 def pmo_indicator(df, back_hour_list, need_shift, extra_agg_dict={}):
-    # PMO 指标
+    # PMO 指标, n^3 * 8
     for n in back_hour_list:
         """
         N1=10
@@ -226,7 +226,7 @@ def pmo_indicator(df, back_hour_list, need_shift, extra_agg_dict={}):
 
 
 def reg_indicator(df, back_hour_list, need_shift, extra_agg_dict={}):
-    # REG 指标
+    # REG 指标, n
     for n in back_hour_list:
         """
         N=40
@@ -367,7 +367,7 @@ def angle_indicator(df, back_hour_list, need_shift, extra_agg_dict={}):
 
 
 def gap_indicator(df, back_hour_list, need_shift, extra_agg_dict={}):
-    # ---- Gap ----
+    # ---- Gap, n^2 ----
     for n in back_hour_list:
         ma = df['close'].rolling(window=n, min_periods=1).mean()
         wma = ta.WMA(df['close'], n)
