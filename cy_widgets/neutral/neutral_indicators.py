@@ -386,3 +386,326 @@ def 癞子_indicator(df, back_hour_list, need_shift, extra_agg_dict={}):
         df[column_name] = diff / abs(diff).rolling(window=n).sum()
         df[column_name] = df[column_name].shift(1 if need_shift else 0)
         extra_agg_dict[column_name] = 'first'
+
+
+def pac_indicator(df, back_hour_list, need_shift, extra_agg_dict={}):
+    # PAC 指标
+    for n in back_hour_list:
+        """
+        N1=20
+        N2=20
+        UPPER=SMA(HIGH,N1,1)
+        LOWER=SMA(LOW,N2,1)
+        用最高价和最低价的移动平均来构造价格变化的通道，如果价格突破
+        上轨则做多，突破下轨则做空。
+        """
+        # upper = df['high'].rolling(n, min_periods=1).mean()
+        df['upper'] = df['high'].ewm(span=n).mean()  # UPPER=SMA(HIGH,N1,1)
+        # lower = df['low'].rolling(n, min_periods=1).mean()
+        df['lower'] = df['low'].ewm(span=n).mean()  # LOWER=SMA(LOW,N2,1)
+        df['width'] = df['upper'] - df['lower']  # 添加指标求宽度进行去量纲
+        df['width_ma'] = df['width'].rolling(n, min_periods=1).mean()
+
+        df[f'pac_bh_{n}'] = df['width'] / df['width_ma'] - 1
+        df[f'pac_bh_{n}'] = df[f'pac_bh_{n}'].shift(1 if need_shift else 0)
+        extra_agg_dict[f'pac_bh_{n}'] = 'first'
+
+        # 删除中间数据
+        del df['upper']
+        del df['lower']
+        del df['width']
+        del df['width_ma']
+
+
+def ddi_indicator(df, back_hour_list, need_shift, extra_agg_dict={}):
+    # DDI
+    for n in back_hour_list:
+        """
+        n = 40
+        HL=HIGH+LOW
+        HIGH_ABS=ABS(HIGH-REF(HIGH,1))
+        LOW_ABS=ABS(LOW-REF(LOW,1))
+        DMZ=IF(HL>REF(HL,1),MAX(HIGH_ABS,LOW_ABS),0)
+        DMF=IF(HL<REF(HL,1),MAX(HIGH_ABS,LOW_ABS),0)
+        DIZ=SUM(DMZ,N)/(SUM(DMZ,N)+SUM(DMF,N))
+        DIF=SUM(DMF,N)/(SUM(DMZ,N)+SUM(DMF,N))
+        DDI=DIZ-DIF
+        DDI 指标用来比较向上波动和向下波动的比例。如果 DDI 上穿/下穿 0
+        则产生买入/卖出信号。
+        """
+        df['hl'] = df['high'] + df['low']  # HL=HIGH+LOW
+        df['abs_high'] = abs(df['high'] - df['high'].shift(1))  # HIGH_ABS=ABS(HIGH-REF(HIGH,1))
+        df['abs_low'] = abs(df['low'] - df['low'].shift(1))  # LOW_ABS=ABS(LOW-REF(LOW,1))
+        max_value1 = df[['abs_high', 'abs_low']].max(axis=1)  # MAX(HIGH_ABS,LOW_ABS)
+        # df.loc[df['hl'] > df['hl'].shift(1), 'DMZ'] = max_value1
+        # df['DMZ'].fillna(value=0, inplace=True)
+        df['DMZ'] = np.where((df['hl'] > df['hl'].shift(1)), max_value1, 0)  # DMZ=IF(HL>REF(HL,1),MAX(HIGH_ABS,LOW_ABS),0)
+        # df.loc[df['hl'] < df['hl'].shift(1), 'DMF'] = max_value1
+        # df['DMF'].fillna(value=0, inplace=True)
+        df['DMF'] = np.where((df['hl'] < df['hl'].shift(1)), max_value1, 0)  # DMF=IF(HL<REF(HL,1),MAX(HIGH_ABS,LOW_ABS),0)
+
+        DMZ_SUM = df['DMZ'].rolling(n).sum()  # SUM(DMZ,N)
+        DMF_SUM = df['DMF'].rolling(n).sum()  # SUM(DMF,N)
+        DIZ = DMZ_SUM / (DMZ_SUM + DMF_SUM)  # DIZ=SUM(DMZ,N)/(SUM(DMZ,N)+SUM(DMF,N))
+        DIF = DMF_SUM / (DMZ_SUM + DMF_SUM)  # DIF=SUM(DMF,N)/(SUM(DMZ,N)+SUM(DMF,N))
+        df[f'ddi_bh_{n}'] = DIZ - DIF
+        df[f'ddi_bh_{n}'] = df[f'ddi_bh_{n}'].shift(1 if need_shift else 0)
+        extra_agg_dict[f'ddi_bh_{n}'] = 'first'
+        # 删除中间数据
+        del df['hl']
+        del df['abs_high']
+        del df['abs_low']
+        del df['DMZ']
+        del df['DMF']
+
+
+def dc_indicator(df, back_hour_list, need_shift, extra_agg_dict={}):
+    # DC 指标
+    for n in back_hour_list:
+        """
+        N=20
+        UPPER=MAX(HIGH,N)
+        LOWER=MIN(LOW,N)
+        MIDDLE=(UPPER+LOWER)/2
+        DC 指标用 N 天最高价和 N 天最低价来构造价格变化的上轨和下轨，
+        再取其均值作为中轨。当收盘价上穿/下穿中轨时产生买入/卖出信号。
+        """
+        upper = df['high'].rolling(n, min_periods=1).max()  # UPPER=MAX(HIGH,N)
+        lower = df['low'].rolling(n, min_periods=1).min()  # LOWER=MIN(LOW,N)
+        middle = (upper + lower) / 2  # MIDDLE=(UPPER+LOWER)/2
+        ma_middle = middle.rolling(n, min_periods=1).mean()  # 求中轨的均线
+        # 进行无量纲处理
+        df[f'dc_bh_{n}'] = middle / ma_middle - 1
+        df[f'dc_bh_{n}'] = df[f'dc_bh_{n}'].shift(1 if need_shift else 0)
+        extra_agg_dict[f'dc_bh_{n}'] = 'first'
+
+
+def v3_indicator(df, back_hour_list, need_shift, extra_agg_dict={}):
+    # v3
+    for n1 in back_hour_list:
+        df['mtm'] = df['close'] / df['close'].shift(n1) - 1
+        df['mtm_mean'] = df['mtm'].rolling(window=n1, min_periods=1).mean()
+
+        # 基于价格atr，计算波动率因子wd_atr
+        df['c1'] = df['high'] - df['low']
+        df['c2'] = abs(df['high'] - df['close'].shift(1))
+        df['c3'] = abs(df['low'] - df['close'].shift(1))
+        df['tr'] = df[['c1', 'c2', 'c3']].max(axis=1)
+        df['atr'] = df['tr'].rolling(window=n1, min_periods=1).mean()
+        df['atr_avg_price'] = df['close'].rolling(window=n1, min_periods=1).mean()
+        df['wd_atr'] = df['atr'] / df['atr_avg_price']
+
+        # 参考ATR，对MTM指标，计算波动率因子
+        df['mtm_l'] = df['low'] / df['low'].shift(n1) - 1
+        df['mtm_h'] = df['high'] / df['high'].shift(n1) - 1
+        df['mtm_c'] = df['close'] / df['close'].shift(n1) - 1
+        df['mtm_c1'] = df['mtm_h'] - df['mtm_l']
+        df['mtm_c2'] = abs(df['mtm_h'] - df['mtm_c'].shift(1))
+        df['mtm_c3'] = abs(df['mtm_l'] - df['mtm_c'].shift(1))
+        df['mtm_tr'] = df[['mtm_c1', 'mtm_c2', 'mtm_c3']].max(axis=1)
+        df['mtm_atr'] = df['mtm_tr'].rolling(window=n1, min_periods=1).mean()
+
+        # 参考ATR，对MTM mean指标，计算波动率因子
+        df['mtm_l_mean'] = df['mtm_l'].rolling(window=n1, min_periods=1).mean()
+        df['mtm_h_mean'] = df['mtm_h'].rolling(window=n1, min_periods=1).mean()
+        df['mtm_c_mean'] = df['mtm_c'].rolling(window=n1, min_periods=1).mean()
+        df['mtm_c1'] = df['mtm_h_mean'] - df['mtm_l_mean']
+        df['mtm_c2'] = abs(df['mtm_h_mean'] - df['mtm_c_mean'].shift(1))
+        df['mtm_c3'] = abs(df['mtm_l_mean'] - df['mtm_c_mean'].shift(1))
+        df['mtm_tr'] = df[['mtm_c1', 'mtm_c2', 'mtm_c3']].max(axis=1)
+        df['mtm_atr_mean'] = df['mtm_tr'].rolling(window=n1, min_periods=1).mean()
+
+        indicator = 'mtm_mean'
+
+        # mtm_mean指标分别乘以三个波动率因子
+        df[indicator] = 1e5 * df['mtm_atr'] * df['mtm_atr_mean'] * df['wd_atr'] * df[indicator]
+
+        df[f'v3_bh_{n1}'] = df[indicator].shift(1 if need_shift else 0)
+        extra_agg_dict[f'v3_bh_{n1}'] = 'first'
+        # 删除中间数据
+        del df['mtm']
+        del df['mtm_mean']
+        del df['c1']
+        del df['c2']
+        del df['c3']
+        del df['tr']
+        del df['atr']
+        del df['atr_avg_price']
+        del df['wd_atr']
+        del df['mtm_l']
+        del df['mtm_h']
+        del df['mtm_c']
+        del df['mtm_c1']
+        del df['mtm_c2']
+        del df['mtm_c3']
+        del df['mtm_tr']
+        del df['mtm_atr']
+        del df['mtm_l_mean']
+        del df['mtm_h_mean']
+        del df['mtm_c_mean']
+        del df['mtm_atr_mean']
+
+
+def rccd_indicator(df, back_hour_list, need_shift, extra_agg_dict={}):
+    # RCCD 指标, 8*n
+    for n in back_hour_list:
+        """
+        M=40
+        N1=20
+        N2=40
+        RC=CLOSE/REF(CLOSE,M)
+        ARC1=SMA(REF(RC,1),M,1)
+        DIF=MA(REF(ARC1,1),N1)-MA(REF(ARC1,1),N2)
+        RCCD=SMA(DIF,M,1)
+        RC 指标为当前价格与昨日价格的比值。当 RC 指标>1 时，说明价格在上升；当 RC 指标增大时，说明价格上升速度在增快。当 RC 指标
+        <1 时，说明价格在下降；当 RC 指标减小时，说明价格下降速度在增
+        快。RCCD 指标先对 RC 指标进行平滑处理，再取不同时间长度的移
+        动平均的差值，再取移动平均。如 RCCD 上穿/下穿 0 则产生买入/
+        卖出信号。
+        """
+        df['RC'] = df['close'] / df['close'].shift(2 * n)  # RC=CLOSE/REF(CLOSE,M)
+        # df['ARC1'] = df['RC'].rolling(2 * n, min_periods=1).mean()
+        df['ARC1'] = df['RC'].ewm(span=2 * n).mean()  # ARC1=SMA(REF(RC,1),M,1)
+        df['MA1'] = df['ARC1'].shift(1).rolling(n, min_periods=1).mean()  # MA(REF(ARC1,1),N1)
+        df['MA2'] = df['ARC1'].shift(1).rolling(2 * n, min_periods=1).mean()  # MA(REF(ARC1,1),N2)
+        df['DIF'] = df['MA1'] - df['MA2']  # DIF=MA(REF(ARC1,1),N1)-MA(REF(ARC1,1),N2)
+        # df['RCCD'] = df['DIF'].rolling(2 * n, min_periods=1).mean()
+        df['RCCD'] = df['DIF'].ewm(span=2 * n).mean()  # RCCD=SMA(DIF,M,1)
+
+        df[f'rccd_bh_{n}'] = df['RCCD'].shift(1 if need_shift else 0)
+        extra_agg_dict[f'rccd_bh_{n}'] = 'first'
+        # 删除中间数据
+        del df['RC']
+        del df['ARC1']
+        del df['MA1']
+        del df['MA2']
+        del df['DIF']
+        del df['RCCD']
+
+
+def vidya_indicator(df, back_hour_list, need_shift, extra_agg_dict={}):
+    # VIDYA, 2*n
+    for n in back_hour_list:
+        """
+        N=10
+        VI=ABS(CLOSE-REF(CLOSE,N))/SUM(ABS(CLOSE-REF(CLOSE,1)),N)
+        VIDYA=VI*CLOSE+(1-VI)*REF(CLOSE,1)
+        VIDYA 也属于均线的一种，不同的是，VIDYA 的权值加入了 ER
+        （EfficiencyRatio）指标。在当前趋势较强时，ER 值较大，VIDYA
+        会赋予当前价格更大的权重，使得 VIDYA 紧随价格变动，减小其滞
+        后性；在当前趋势较弱（比如振荡市中）,ER 值较小，VIDYA 会赋予
+        当前价格较小的权重，增大 VIDYA 的滞后性，使其更加平滑，避免
+        产生过多的交易信号。
+        当收盘价上穿/下穿 VIDYA 时产生买入/卖出信号。
+        """
+        df['abs_diff_close'] = abs(df['close'] - df['close'].shift(n))  # ABS(CLOSE-REF(CLOSE,N))
+        df['abs_diff_close_sum'] = df['abs_diff_close'].rolling(n).sum()  # SUM(ABS(CLOSE-REF(CLOSE,1))
+        VI = df['abs_diff_close'] / df['abs_diff_close_sum']  # VI=ABS(CLOSE-REF(CLOSE,N))/SUM(ABS(CLOSE-REF(CLOSE,1)),N)
+        VIDYA = VI * df['close'] + (1 - VI) * df['close'].shift(1)  # VIDYA=VI*CLOSE+(1-VI)*REF(CLOSE,1)
+        # 进行无量纲处理
+        df[f'vidya_bh_{n}'] = VIDYA / df['close'] - 1
+        df[f'vidya_bh_{n}'] = df[f'vidya_bh_{n}'].shift(1 if need_shift else 0)
+        extra_agg_dict[f'vidya_bh_{n}'] = 'first'
+        # 删除中间数据
+        del df['abs_diff_close']
+        del df['abs_diff_close_sum']
+
+
+def apz_indicator(df, back_hour_list, need_shift, extra_agg_dict={}):
+    # APZ 指标, 4*n
+    for n in back_hour_list:
+        """
+        N=10
+        M=20
+        PARAM=2
+        VOL=EMA(EMA(HIGH-LOW,N),N)
+        UPPER=EMA(EMA(CLOSE,M),M)+PARAM*VOL
+        LOWER= EMA(EMA(CLOSE,M),M)-PARAM*VOL
+        APZ（Adaptive Price Zone 自适应性价格区间）与布林线 Bollinger 
+        Band 和肯通纳通道 Keltner Channel 很相似，都是根据价格波动性围
+        绕均线而制成的价格通道。只是在这三个指标中计算价格波动性的方
+        法不同。在布林线中用了收盘价的标准差，在肯通纳通道中用了真波
+        幅 ATR，而在 APZ 中运用了最高价与最低价差值的 N 日双重指数平
+        均来反映价格的波动幅度。
+        """
+        df['hl'] = df['high'] - df['low']  # HIGH-LOW,
+        df['ema_hl'] = df['hl'].ewm(n, adjust=False).mean()  # EMA(HIGH-LOW,N)
+        df['vol'] = df['ema_hl'].ewm(n, adjust=False).mean()  # VOL=EMA(EMA(HIGH-LOW,N),N)
+
+        # 计算通道 可以作为CTA策略 作为因子的时候进行改造
+        df['ema_close'] = df['close'].ewm(2 * n, adjust=False).mean()  # EMA(CLOSE,M)
+        df['ema_ema_close'] = df['ema_close'].ewm(2 * n, adjust=False).mean()  # EMA(EMA(CLOSE,M),M)
+        # EMA去量纲
+        df[f'apz_bh_{n}'] = df['vol'] / df['ema_ema_close']
+        df[f'apz_bh_{n}'] = df[f'apz_bh_{n}'].shift(1 if need_shift else 0)
+        extra_agg_dict[f'apz_bh_{n}'] = 'first'
+        # 删除中间数据
+        del df['hl']
+        del df['ema_hl']
+        del df['vol']
+        del df['ema_close']
+        del df['ema_ema_close']
+
+
+def rwih_indicator(df, back_hour_list, need_shift, extra_agg_dict={}):
+    # RWI 指标, n
+    for n in back_hour_list:
+        """
+        N=14
+        TR=MAX(ABS(HIGH-LOW),ABS(HIGH-REF(CLOSE,1)),ABS(REF(
+        CLOSE,1)-LOW))
+        ATR=MA(TR,N)
+        RWIH=(HIGH-REF(LOW,1))/(ATR*√N)
+        RWIL=(REF(HIGH,1)-LOW)/(ATR*√N)
+        RWI（随机漫步指标）对一段时间股票的随机漫步区间与真实运动区
+        间进行比较以判断股票价格的走势。
+        如果 RWIH>1，说明股价长期是上涨趋势，则产生买入信号；
+        如果 RWIL>1，说明股价长期是下跌趋势，则产生卖出信号。
+        """
+        df['c1'] = abs(df['high'] - df['low'])  # ABS(HIGH-LOW)
+        df['c2'] = abs(df['close'] - df['close'].shift(1))  # ABS(HIGH-REF(CLOSE,1))
+        df['c3'] = abs(df['high'] - df['close'].shift(1))  # ABS(REF(CLOSE,1)-LOW)
+        df['TR'] = df[['c1', 'c2', 'c3']].max(axis=1)  # TR=MAX(ABS(HIGH-LOW),ABS(HIGH-REF(CLOSE,1)),ABS(REF(CLOSE,1)-LOW))
+        df['ATR'] = df['TR'].rolling(n, min_periods=1).mean()  # ATR=MA(TR,N)
+        df['RWIH'] = (df['high'] - df['low'].shift(1)) / (df['ATR'] * np.sqrt(n))  # RWIH=(HIGH-REF(LOW,1))/(ATR*√N)
+        df[f'rwih_bh_{n}'] = df['RWIH'].shift(1 if need_shift else 0)
+        extra_agg_dict[f'rwih_bh_{n}'] = 'first'
+        # 删除中间过程数据
+        del df['c1']
+        del df['c2']
+        del df['c3']
+        del df['TR']
+        del df['ATR']
+        del df['RWIH']
+
+
+def rwil_indicator(df, back_hour_list, need_shift, extra_agg_dict={}):
+    # RWI 指标, n
+    for n in back_hour_list:
+        """
+        N=14
+        TR=MAX(ABS(HIGH-LOW),ABS(HIGH-REF(CLOSE,1)),ABS(REF(
+        CLOSE,1)-LOW))
+        ATR=MA(TR,N)
+        RWIH=(HIGH-REF(LOW,1))/(ATR*√N)
+        RWIL=(REF(HIGH,1)-LOW)/(ATR*√N)
+        RWI（随机漫步指标）对一段时间股票的随机漫步区间与真实运动区
+        间进行比较以判断股票价格的走势。
+        如果 RWIH>1，说明股价长期是上涨趋势，则产生买入信号；
+        如果 RWIL>1，说明股价长期是下跌趋势，则产生卖出信号。
+        """
+        df['c1'] = abs(df['high'] - df['low'])  # ABS(HIGH-LOW)
+        df['c2'] = abs(df['close'] - df['close'].shift(1))  # ABS(HIGH-REF(CLOSE,1))
+        df['c3'] = abs(df['high'] - df['close'].shift(1))  # ABS(REF(CLOSE,1)-LOW)
+        df['TR'] = df[['c1', 'c2', 'c3']].max(axis=1)  # TR=MAX(ABS(HIGH-LOW),ABS(HIGH-REF(CLOSE,1)),ABS(REF(CLOSE,1)-LOW))
+        df['ATR'] = df['TR'].rolling(n, min_periods=1).mean()  # ATR=MA(TR,N)
+        df['RWIL'] = (df['high'].shift(1) - df['low']) / (df['ATR'] * np.sqrt(n))  # RWIL=(REF(HIGH,1)-LOW)/(ATR*√N)
+        df[f'rwil_bh_{n}'] = df['RWIL'].shift(1 if need_shift else 0)
+        extra_agg_dict[f'rwil_bh_{n}'] = 'first'
+        # 删除中间过程数据
+        del df['c1']
+        del df['c2']
+        del df['c3']
+        del df['TR']
+        del df['ATR']
+        del df['RWIL']
