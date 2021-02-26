@@ -120,3 +120,54 @@ class BinanceNeutralStrategy_REG_RCCD_VIDYA_RWI_APZ(NeutralStrategyBase):
         """ 横截面计算步骤 """
         for (f_name, _, _, f_weight) in self.factor_configs:
             df['factor'] += df.groupby('s_time')[f_name + '_factor'].rank(method='first') * f_weight
+
+
+class BinanceNeutralStrategy_V1UP_REG_PMO(NeutralStrategyBase):
+    # ('v1_up', True, 9, 0.5, 1), ('reg', False, 24, 0.7, 1), ('pmo', True, 3, 0, 1)
+
+    @classmethod
+    def strategy_with_parameters(cls, parameters):
+        """初始化"""
+        return BinanceNeutralStrategy_V1UP_REG_PMO(int(parameters[0]), f'{int(parameters[1])}h', float(parameters[2]))
+
+    @property
+    def display_name(self):
+        return "3.V1UP_REG_PMO"
+
+    @property
+    def candle_count_4_cal_factor(self):
+        return 80
+
+    @property
+    def factor_configs(self):
+        # return ('v1_up', True, 9, 0.5, 1), ('reg', False, 24, 0.7, 1), ('pmo', True, 3, 0, 1)
+        return ('v1_up', True, 9, 0.5, 1), ('reg', False, 24, 0.7, 0.9), ('pmo', True, 3, 0, 1)
+
+    def cal_factor(self, df):
+        for (f_name, f_reverse, f_bh, f_diff, _) in self.factor_configs:
+            # 加差分
+            if f_diff > 0:
+                add_diff = [f_diff]
+                f_column = f'{f_name}_bh_{f_bh}_diff_{f_diff}'
+            else:
+                add_diff = False
+                f_column = f'{f_name}_bh_{f_bh}'
+            # 计算因子
+            eval(f'{f_name}_indicator')(df, [f_bh], False, add_diff=add_diff)
+            # 设置到 factor
+            if f_reverse:
+                df[f'{f_name}_factor'] = -df[f_column]
+            else:
+                df[f'{f_name}_factor'] = df[f_column]
+        # 横截面这里没有 factor，先给0
+        df['factor'] = 0
+        return df
+
+    def update_agg_dict(self, agg_dict):
+        for (f_name, _, _, _, _) in self.factor_configs:
+            agg_dict[f'{f_name}_factor'] = 'last'
+
+    def cal_compound_factors(self, df):
+        """ 横截面计算步骤 """
+        for (f_name, _, _, _, f_weight) in self.factor_configs:
+            df['factor'] += df.groupby('s_time')[f_name + '_factor'].rank(method='first') * f_weight
