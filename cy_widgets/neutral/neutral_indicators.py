@@ -908,3 +908,66 @@ def rwil_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=F
         del df['TR']
         del df['ATR']
         del df['RWIL']
+
+
+def ma_displaced_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # ma_displaced 2*n
+    for n in back_hour_list:
+        """
+        N=20
+        M=10
+        MA_CLOSE=MA(CLOSE,N)
+        MADisplaced=REF(MA_CLOSE,M)
+        MADisplaced 指标把简单移动平均线向前移动了 M 个交易日，用法
+        与一般的移动平均线一样。如果收盘价上穿/下穿 MADisplaced 则产
+        生买入/卖出信号。
+        有点变种bias
+        """
+        ma = df['close'].rolling(2 * n, min_periods=1).mean()  # MA(CLOSE,N) 固定俩个参数之间的关系  减少参数
+        ref = ma.shift(n)  # MADisplaced=REF(MA_CLOSE,M)
+
+        f_column = f'ma_displaced_bh_{n}'
+        df[f_column] = df['close'] / ref - 1  # 去量纲
+        df[f_column] = df[f_column].shift(1 if need_shift else 0)
+        extra_agg_dict[f_column] = 'first'
+        # 差分
+        if type(add_diff) is list:
+            add_diff_columns(df, f_column, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_column, extra_agg_dict, 'first')
+
+
+def vix_bw_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # vix_bw 4*n
+    for n in back_hour_list:
+        df['vix'] = df['close'] / df['close'].shift(n) - 1
+        df['vix_median'] = df['vix'].rolling(
+            window=n, min_periods=1).mean()
+        df['vix_std'] = df['vix'].rolling(n, min_periods=1).std()
+        df['vix_score'] = abs(
+            df['vix'] - df['vix_median']) / df['vix_std']
+        df['max'] = df['vix_score'].rolling(
+            window=n, min_periods=1).max().shift(1)
+        df['min'] = df['vix_score'].rolling(
+            window=n, min_periods=1).min().shift(1)
+        df['vix_upper'] = df['vix_median'] + df['max'] * df['vix_std']
+        df['vix_lower'] = df['vix_median'] - df['max'] * df['vix_std']
+
+        f_column = f'vix_bw_bh_{n}'
+        df[f_column] = (
+            df['vix_upper'] - df['vix_lower'])*np.sign(df['vix_median'].diff(n))
+        condition1 = np.sign(df['vix_median'].diff(
+            n)) != np.sign(df['vix_median'].diff(1))
+        condition2 = np.sign(df['vix_median'].diff(
+            n)) != np.sign(df['vix_median'].diff(1).shift(1))
+        df.loc[condition1, f_column] = 0
+        df.loc[condition2, f_column] = 0
+        df[f_column] = df[f_column].shift(1 if need_shift else 0)
+        extra_agg_dict[f_column] = 'first'
+        # 差分
+        if type(add_diff) is list:
+            add_diff_columns(df, f_column, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_column, extra_agg_dict, 'first')
+    df.drop(['vix', 'vix_median', 'vix_std', 'max', 'min',
+             'vix_score', 'vix_upper', 'vix_lower'], axis=1, inplace=True)
