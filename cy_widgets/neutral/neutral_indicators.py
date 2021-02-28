@@ -937,37 +937,126 @@ def ma_displaced_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, ad
             add_diff_columns(df, f_column, extra_agg_dict, 'first')
 
 
-def vix_bw_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
-    # vix_bw 4*n
+def dbcd_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # DBCD 6*n
     for n in back_hour_list:
-        df['vix'] = df['close'] / df['close'].shift(n) - 1
-        df['vix_median'] = df['vix'].rolling(
-            window=n, min_periods=1).mean()
-        df['vix_std'] = df['vix'].rolling(n, min_periods=1).std()
-        df['vix_score'] = abs(
-            df['vix'] - df['vix_median']) / df['vix_std']
-        df['max'] = df['vix_score'].rolling(
-            window=n, min_periods=1).max().shift(1)
-        df['min'] = df['vix_score'].rolling(
-            window=n, min_periods=1).min().shift(1)
-        df['vix_upper'] = df['vix_median'] + df['max'] * df['vix_std']
-        df['vix_lower'] = df['vix_median'] - df['max'] * df['vix_std']
+        df['ma'] = df['close'].rolling(n, min_periods=1).mean()  # MA(CLOSE,N)
+        df['BIAS'] = (df['close'] - df['ma']) / df['ma'] * 100  # BIAS=(CLOSE-MA(CLOSE,N)/MA(CLOSE,N))*100
+        df['BIAS_DIF'] = df['BIAS'] - df['BIAS'].shift(3 * n)  # BIAS_DIF=BIAS-REF(BIAS,M)
+        df['DBCD'] = df['BIAS_DIF'].rolling(3 * n + 2, min_periods=1).mean()
+        # df['dbcd'] = df['BIAS_DIF'].ewm(span=3 * n3).mean()  # DBCD=SMA(BIAS_DIFF,T,1)
+        f_name = f'dbcd_bh_{n}'
+        df[f_name] = df['DBCD'].shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
 
-        f_column = f'vix_bw_bh_{n}'
-        df[f_column] = (
-            df['vix_upper'] - df['vix_lower'])*np.sign(df['vix_median'].diff(n))
-        condition1 = np.sign(df['vix_median'].diff(
-            n)) != np.sign(df['vix_median'].diff(1))
-        condition2 = np.sign(df['vix_median'].diff(
-            n)) != np.sign(df['vix_median'].diff(1).shift(1))
-        df.loc[condition1, f_column] = 0
-        df.loc[condition2, f_column] = 0
-        df[f_column] = df[f_column].shift(1 if need_shift else 0)
-        extra_agg_dict[f_column] = 'first'
-        # 差分
         if type(add_diff) is list:
-            add_diff_columns(df, f_column, extra_agg_dict, 'first', diff_d=add_diff)
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
         elif add_diff:
-            add_diff_columns(df, f_column, extra_agg_dict, 'first')
-    df.drop(['vix', 'vix_median', 'vix_std', 'max', 'min',
-             'vix_score', 'vix_upper', 'vix_lower'], axis=1, inplace=True)
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+
+        del df['ma']
+        del df['BIAS']
+        del df['BIAS_DIF']
+        del df['DBCD']
+
+
+def uos_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # UOS 指标
+    for n in back_hour_list:
+        M = n
+        N = 2 * n
+        O = 4 * n
+        df['ref_close'] = df['close'].shift(1)
+        df['TH'] = df[['high', 'ref_close']].max(axis=1)
+        df['TL'] = df[['low', 'ref_close']].min(axis=1)
+        df['TR'] = df['TH'] - df['TL']
+        df['XR'] = df['close'] - df['TL']
+        df['XRM'] = df['XR'].rolling(M).sum() / df['TR'].rolling(M).sum()
+        df['XRN'] = df['XR'].rolling(N).sum() / df['TR'].rolling(N).sum()
+        df['XRO'] = df['XR'].rolling(O).sum() / df['TR'].rolling(O).sum()
+        df['UOS'] = 100 * (df['XRM'] * N * O + df['XRN'] * M * O + df['XRO'] * M * N) / (M * N + M * O + N * O)
+
+        f_name = f'uos_bh_{n}'
+        df[f_name] = df['UOS'].shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        del df['ref_close']
+        del df['TH']
+        del df['TL']
+        del df['TR']
+        del df['XR']
+        del df['XRM']
+        del df['XRN']
+        del df['XRO']
+        del df['UOS']
+
+
+def trix_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # TRIX 3n
+    for n in back_hour_list:
+        df['ema'] = df['close'].ewm(n, adjust=False).mean()
+        df['ema_ema'] = df['ema'].ewm(n, adjust=False).mean()
+        df['ema_ema_ema'] = df['ema_ema'].ewm(n, adjust=False).mean()
+
+        df['TRIX'] = (df['ema_ema_ema'] - df['ema_ema_ema'].shift(1)) / df['ema_ema_ema'].shift(1)
+
+        f_name = f'trix_bh_{n}'
+        df[f_name] = df['TRIX'].shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        del df['ema']
+        del df['ema_ema']
+        del df['ema_ema_ema']
+        del df['TRIX']
+
+
+def vwap_bias_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # bias因子以均价表示
+    for n in back_hour_list:
+        df['vwap'] = df['volume'] / df['quote_volume']
+        ma = df['vwap'].rolling(n, min_periods=1).mean()
+        f_name = f'vwap_bias_bh_{n}'
+        df[f_name] = df['vwap'] / ma - 1
+        df[f_name] = df[f_name].shift(1)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        del df['vwap']
+
+
+def ko_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # KO
+    for n in back_hour_list:
+        df['price'] = (df['high'] + df['low'] + df['close']) / 3
+        df['V'] = np.where(df['price'] > df['price'].shift(1), df['volume'], -df['volume'])
+        df['V_ema1'] = df['V'].ewm(n, adjust=False).mean()
+        df['V_ema2'] = df['V'].ewm(int(n * 1.618), adjust=False).mean()
+        df['KO'] = df['V_ema1'] - df['V_ema2']
+        # 标准化
+        f_name = f'ko_bh_{n}'
+        df[f_name] = (df['KO'] - df['KO'].rolling(n).min()) / (
+            df['KO'].rolling(n).max() - df['KO'].rolling(n).min())
+        df[f_name] = df[f_name].shift(1)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        del df['price']
+        del df['V']
+        del df['V_ema1']
+        del df['V_ema2']
+        del df['KO']
+
+    # df['comp_zack'] = df['reg_diff_0.5'] * (df['uos_diff_0.3'] + df['k_diff_0.3']) \
+    #     + df['pmo'] * (df['trix_diff_0.5'] + df['vwap_bias_diff_0.3']) \
+    #     + df['dbcd_diff_0.5'] * (df['dc'] + df['ko'])
+    # return df
