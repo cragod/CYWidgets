@@ -50,18 +50,6 @@ def add_diff_columns(df, name, agg_dict, agg_type, diff_d=[0.3, 0.5, 0.7]):
 #         extra_agg_dict[f'J_bh_{n}'] = 'first'
 
 
-# def rsi_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
-#     # --- RSI ---  在期货市场很有效
-#     close_dif = df['close'].diff()
-#     df['up'] = np.where(close_dif > 0, close_dif, 0)
-#     df['down'] = np.where(close_dif < 0, abs(close_dif), 0)
-#     for n in back_hour_list:
-#         a = df['up'].rolling(n).sum()
-#         b = df['down'].rolling(n).sum()
-#         df[f'RSI_bh_{n}'] = (a / (a + b)).shift(1 if need_shift else 0)  # RSI
-#         extra_agg_dict[f'RSI_bh_{n}'] = 'first'
-
-
 # def avg_price_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
 #     # --- 均价 ---  对应低价股策略(预计没什么用)
 #     # 策略改进思路：以下所有用到收盘价的因子，都可尝试使用均价代替
@@ -155,6 +143,23 @@ def add_diff_columns(df, name, agg_dict, agg_type, diff_d=[0.3, 0.5, 0.7]):
 #         df[f'量价相关系数_bh_{n}'] = df['close'].rolling(n).corr(df['quote_volume']).shift(1 if need_shift else 0)
 #         extra_agg_dict[f'量价相关系数_bh_{n}'] = 'first'
 
+def rsi_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # --- RSI ---  在期货市场很有效
+    close_dif = df['close'].diff()
+    df['up'] = np.where(close_dif > 0, close_dif, 0)
+    df['down'] = np.where(close_dif < 0, abs(close_dif), 0)
+    for n in back_hour_list:
+        a = df['up'].rolling(n).sum()
+        b = df['down'].rolling(n).sum()
+
+        f_name = f'RSI_bh_{n}'
+        df[f_name] = (a / (a + b)).shift(1 if need_shift else 0)  # RSI
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+
 
 def bias_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
     # --- bias ---  涨跌幅更好的表达方式 bias 币价偏离均线的比例。
@@ -183,6 +188,50 @@ def cci_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fa
             add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
         elif add_diff:
             add_diff_columns(df, f_name, extra_agg_dict, 'first')
+
+
+def cci_ema_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # magic_cci
+    for n in back_hour_list:
+        """
+        N=14
+        TP=(HIGH+LOW+CLOSE)/3
+        MA=MA(TP,N)
+        MD=MA(ABS(TP-MA),N)
+        CCI=(TP-MA)/(0.015MD)
+        CCI 指标用来衡量典型价格（最高价、最低价和收盘价的均值）与其
+        一段时间的移动平均的偏离程度。CCI 可以用来反映市场的超买超卖
+        状态。一般认为，CCI 超过 100 则市场处于超买状态；CCI 低于-100
+        则市场处于超卖状态。当 CCI 下穿 100/上穿-100 时，说明股价可能
+        要开始发生反转，可以考虑卖出/买入。
+        """
+        df['oma'] = df['open'].ewm(span=n, adjust=False).mean()  # 取 open 的ema
+        df['hma'] = df['high'].ewm(span=n, adjust=False).mean()  # 取 high 的ema
+        df['lma'] = df['low'].ewm(span=n, adjust=False).mean()  # 取 low的ema
+        df['cma'] = df['close'].ewm(span=n, adjust=False).mean()  # 取 close的ema
+        df['tp'] = (df['oma'] + df['hma'] + df['lma'] + df[
+            'cma']) / 4  # 魔改CCI基础指标 将TP=(HIGH+LOW+CLOSE)/3  替换成以open/high/low/close的ema 的均值
+        df['ma'] = df['tp'].ewm(span=n, adjust=False).mean()  # MA(TP,N)  将移动平均改成 ema
+        df['abs_diff_close'] = abs(df['tp'] - df['ma'])  # ABS(TP-MA)
+        df['md'] = df['abs_diff_close'].ewm(span=n, adjust=False).mean()  # MD=MA(ABS(TP-MA),N)  将移动平均替换成ema
+
+        f_name = f'cci_ema_bh_{n}'
+        df[f_name] = (df['tp'] - df['ma']) / df['md']  # CCI=(TP-MA)/(0.015MD)  CCI在一定范围内
+        df[f_name] = df[f_name].shift(1 if need_shift else 0)  # 取前一周期防止未来函数  实盘中不需要
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        # # 删除中间数据
+        del df['oma']
+        del df['hma']
+        del df['lma']
+        del df['cma']
+        del df['tp']
+        del df['ma']
+        del df['abs_diff_close']
+        del df['md']
 
 
 def psy_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
@@ -1060,3 +1109,59 @@ def ko_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fal
     #     + df['pmo'] * (df['trix_diff_0.5'] + df['vwap_bias_diff_0.3']) \
     #     + df['dbcd_diff_0.5'] * (df['dc'] + df['ko'])
     # return df
+
+
+def mtm_mean_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # mtm_mean
+    for n in back_hour_list:
+        f_name = f'mtm_mean_bh_{n}'
+        df[f_name] = (df['close'] / df['close'].shift(n) - 1).rolling(window=n, min_periods=1).mean().shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+
+
+def force_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # force
+    for n in back_hour_list:
+        df['force'] = df['quote_volume'] * (df['close'] - df['close'].shift(1))
+
+        f_name = f'force_bh_{n}'
+        df[f_name] = df['force'].rolling(n, min_periods=1).mean()
+        df[f_name] = df[f_name].shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
+
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        # 删除中间过程数据
+        del df['force']
+
+
+def bolling_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # Bolling
+    for n in back_hour_list:
+        # 计算布林上下轨
+        df['std'] = df['close'].rolling(n, min_periods=1).std()
+        df['ma'] = df['close'].rolling(n, min_periods=1).mean()
+        df['upper'] = df['ma'] + 1.0 * df['std']
+        df['lower'] = df['ma'] - 1.0 * df['std']
+        # 将上下轨中间的部分设为0
+        condition_0 = (df['close'] <= df['upper']) & (df['close'] >= df['lower'])
+        condition_1 = df['close'] > df['upper']
+        condition_2 = df['close'] < df['lower']
+        df.loc[condition_0, 'distance'] = 0
+        df.loc[condition_1, 'distance'] = df['close'] - df['upper']
+        df.loc[condition_2, 'distance'] = df['close'] - df['lower']
+
+        f_name = f'bolling_bh_{n}'
+        df[f_name] = df['distance'] / df['std']
+        df[f_name] = df[f_name].shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
