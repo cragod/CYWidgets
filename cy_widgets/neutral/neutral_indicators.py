@@ -1165,3 +1165,19 @@ def bolling_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_dif
             add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
         elif add_diff:
             add_diff_columns(df, f_name, extra_agg_dict, 'first')
+
+
+def vix_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # vix
+    for n in back_hour_list:
+        df['vix'] = df['close'] / df['close'].shift(n) - 1
+        df['up'] = df['vix'].rolling(window=n).max().shift(1)
+
+        f_name = f'vix_bh_{n}'
+        df[f_name] = df['vix'] - df['up']
+        df[f_name] = df[f_name].shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')

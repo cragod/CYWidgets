@@ -132,9 +132,9 @@ class NeutralStrategyBase:
         # 删除不要的币
         df['方向'] = 0
         df.loc[(df['rank'] <= selected_coin_num) & df['condition_long'], '方向'] = 1
-        print(df[(df['rank'] <= selected_coin_num) & df['condition_long']])
+        print(df[(df['rank'] <= selected_coin_num) & df['condition_long']][['symbol', 's_time', 'e_time', 'rank', 'factor', '方向']])
         df.loc[((df['币总数'] - df['rank']) < selected_coin_num) & df['condition_short'], '方向'] = -1
-        print(df[((df['币总数'] - df['rank']) < selected_coin_num) & df['condition_short']])
+        print(df[((df['币总数'] - df['rank']) < selected_coin_num) & df['condition_short']][['symbol', 's_time', 'e_time', 'rank', 'factor', '方向']])
         df = df[df['方向'] != 0]
 
         # ===将每个币种的数据保存到dict中
