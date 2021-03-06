@@ -12,15 +12,10 @@ class NeutralStrategyBase:
     # 过滤条件不完善，先不用
     _add_bolling_adapt_filter = False
 
-    def __init__(self, select_coin_num, hold_period, leverage):
-        self.select_coin_num = select_coin_num
-        self.leverage = leverage
-        self.hold_period = hold_period
-
-    @abstractclassmethod
-    def strategy_with_parameters(cls, parameters):
-        """初始化"""
-        raise NotImplementedError('Subclass')
+    def __init__(self, parameters):
+        self.select_coin_num = int(parameters[0])
+        self.hold_period = f'{int(parameters[1])}h'
+        self.leverage = float(parameters[2])
 
     @abstractproperty
     def candle_count_4_cal_factor(self):

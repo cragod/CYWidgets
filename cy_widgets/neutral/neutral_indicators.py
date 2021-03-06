@@ -290,7 +290,7 @@ def vma_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fa
 
 
 def pmo_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
-    # PMO 指标, n^3 * 8
+    # PMO 指标, 8*n
     for n in back_hour_list:
         """
         N1=10
@@ -341,10 +341,8 @@ def reg_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fa
         出。如果 REG 上穿 0.05/下穿-0.05 则产生买入/卖出信号。
         """
         f_name = f'reg_bh_{n}'
-        # df['reg_close'] = talib.LINEARREG(df['close'], timeperiod=n) # 该部分为talib内置求线性回归
-        # df['reg'] = df['close'] / df['ref_close'] - 1
-
         # sklearn 线性回归
+
         def reg_ols(_y, n):
             _x = np.arange(n) + 1
             model = LinearRegression().fit(_x.reshape(-1, 1), _y)  # 线性回归训练
@@ -353,6 +351,44 @@ def reg_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fa
 
         df['reg_close'] = df['close'].rolling(n).apply(lambda y: reg_ols(y, n))  # 求数据拟合的线性回归
         df['reg'] = df['close'] / df['reg_close'] - 1
+
+        df[f_name] = df['reg'].shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        # 删除中间过程数据
+        del df['reg']
+        del df['reg_close']
+
+
+def reg_ta_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # REG 指标, n
+    for n in back_hour_list:
+        """
+        N=40
+        X=[1,2,...,N]
+        Y=[REF(CLOSE,N-1),...,REF(CLOSE,1),CLOSE]
+        做回归得 REG_CLOSE=aX+b
+        REG=(CLOSE-REG_CLOSE)/REG_CLOSE
+        在过去的 N 天内收盘价对序列[1,2,...,N]作回归得到回归直线，当收盘
+        价超过回归直线的一定范围时买入，低过回归直线的一定范围时卖
+        出。如果 REG 上穿 0.05/下穿-0.05 则产生买入/卖出信号。
+        """
+        f_name = f'reg_ta_bh_{n}'
+        df['reg_close'] = ta.LINEARREG(df['close'], timeperiod=n)  # 该部分为talib内置求线性回归
+        df['reg'] = df['close'] / df['reg_close'] - 1
+
+        # # sklearn 线性回归
+        # def reg_ols(_y, n):
+        #     _x = np.arange(n) + 1
+        #     model = LinearRegression().fit(_x.reshape(-1, 1), _y)  # 线性回归训练
+        #     y_pred = model.coef_ * _x + model.intercept_  # y = ax + b
+        #     return y_pred[-1]
+
+        # df['reg_close'] = df['close'].rolling(n).apply(lambda y: reg_ols(y, n))  # 求数据拟合的线性回归
+        # df['reg'] = df['close'] / df['reg_close'] - 1
 
         df[f_name] = df['reg'].shift(1 if need_shift else 0)
         extra_agg_dict[f_name] = 'first'
@@ -497,7 +533,7 @@ def angle_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=
 
 
 def gap_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
-    # ---- Gap, n^2 ----
+    # ---- Gap, n*2 ----
     for n in back_hour_list:
         ma = df['close'].rolling(window=n, min_periods=1).mean()
         wma = ta.WMA(df['close'], n)
@@ -1072,7 +1108,7 @@ def vwap_bias_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_d
         ma = df['vwap'].rolling(n, min_periods=1).mean()
         f_name = f'vwap_bias_bh_{n}'
         df[f_name] = df['vwap'] / ma - 1
-        df[f_name] = df[f_name].shift(1)
+        df[f_name] = df[f_name].shift(1 if need_shift else 0)
         extra_agg_dict[f_name] = 'first'
         if type(add_diff) is list:
             add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
@@ -1093,7 +1129,7 @@ def ko_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fal
         f_name = f'ko_bh_{n}'
         df[f_name] = (df['KO'] - df['KO'].rolling(n).min()) / (
             df['KO'].rolling(n).max() - df['KO'].rolling(n).min())
-        df[f_name] = df[f_name].shift(1)
+        df[f_name] = df[f_name].shift(1 if need_shift else 0)
         extra_agg_dict[f_name] = 'first'
         if type(add_diff) is list:
             add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
@@ -1181,3 +1217,86 @@ def vix_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fa
             add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
         elif add_diff:
             add_diff_columns(df, f_name, extra_agg_dict, 'first')
+
+
+def vix_bw_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    for n in back_hour_list:
+        df['vix'] = df['close'] / df['close'].shift(n) - 1
+        df['vix_median'] = df['vix'].rolling(
+            window=n, min_periods=1).mean()
+        df['vix_std'] = df['vix'].rolling(n, min_periods=1).std()
+        df['vix_score'] = abs(
+            df['vix'] - df['vix_median']) / df['vix_std']
+        df['max'] = df['vix_score'].rolling(
+            window=n, min_periods=1).max().shift(1)
+        df['min'] = df['vix_score'].rolling(
+            window=n, min_periods=1).min().shift(1)
+        df['vix_upper'] = df['vix_median'] + df['max'] * df['vix_std']
+        df['vix_lower'] = df['vix_median'] - df['max'] * df['vix_std']
+
+        f_name = f'vix_bw_bh_{n}'
+        df[f_name] = (df['vix_upper'] - df['vix_lower'])*np.sign(df['vix_median'].diff(n))
+        condition1 = np.sign(df['vix_median'].diff(n)) != np.sign(df['vix_median'].diff(1))
+        condition2 = np.sign(df['vix_median'].diff(n)) != np.sign(df['vix_median'].diff(1).shift(1))
+        df.loc[condition1, f_name] = 0
+        df.loc[condition2, f_name] = 0
+        df[f_name] = df[f_name].shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
+        # 差分
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        df.drop(['vix', 'vix_median', 'vix_std', 'max', 'min', 'vix_score', 'vix_upper', 'vix_lower'], axis=1, inplace=True)
+
+
+def atr_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # ATR
+    for n in back_hour_list:
+        # 基于价格atr，计算atr涨幅因子
+        df['c1'] = df['high'] - df['low']
+        df['c2'] = abs(df['high'] - df['close'].shift(1))
+        df['c3'] = abs(df['low'] - df['close'].shift(1))
+        df['tr'] = df[['c1', 'c2', 'c3']].max(axis=1)
+        df['atr'] = df['tr'].rolling(window=n, min_periods=1).mean()
+        df['avg_atr'] = df['atr'].rolling(window=n, min_periods=1).mean()
+        df['atr_speed_up'] = df['atr'] / df['avg_atr']
+
+        f_name = f'atr_bh_{n}'
+        df[f_name] = df['atr_speed_up'].shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+
+
+def market_pnl_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # 市场盈亏
+    for n in back_hour_list:
+        quote_volume_ema = df['quote_volume'].ewm(span=n, adjust=False).mean()
+        volume_ema = df['volume'].ewm(span=n, adjust=False).mean()
+        cost = (df['open'] + df['low'] + df['close']) / 3
+        cost_ema = cost.ewm(span=n, adjust=False).mean()
+        condition = df['quote_volume'] > 0
+        df.loc[condition, 'avg_p'] = df['quote_volume'] / df['volume']
+        condition = df['quote_volume'] == 0
+
+        df.loc[condition, 'avg_p'] = df['close'].shift(1)
+        condition1 = df['avg_p'] <= df['high']
+        condition2 = df['avg_p'] >= df['low']
+        df.loc[condition1 & condition2, f'前{n}h平均持仓成本'] = quote_volume_ema / volume_ema
+        condition1 = df['avg_p'] > df['high']
+        condition2 = df['avg_p'] < df['low']
+        df.loc[condition1 & condition2, f'前{n}h平均持仓成本'] = cost_ema
+
+        f_name = f'market_pnl_bh_{n}'
+        df[f_name] = df['close'] / df[f'前{n}h平均持仓成本'] - 1
+        df[f_name] = df[f_name].shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        del df[f'avg_p']
+        del df[f'前{n}h平均持仓成本']
