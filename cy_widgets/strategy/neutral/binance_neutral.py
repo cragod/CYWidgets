@@ -110,7 +110,7 @@ class BinanceNeutral_REG_PMO(BinanceNeutralCompoundBase):
 
     @property
     def display_name(self):
-        return "4.REG_PMO_8H"
+        return "5.REG_PMO_8H"
 
     @property
     def candle_count_4_cal_factor(self):
