@@ -48,6 +48,6 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/cragod/CYWidgets',
-    version='0.4.24',
+    version='0.4.25',
     zip_safe=False,
 )
