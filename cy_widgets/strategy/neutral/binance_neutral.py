@@ -103,3 +103,19 @@ class BinanceNeutralStrategy_CCIEMA_MTMMEAN(BinanceNeutralCompoundBase):
     @property
     def factor_configs(self):
         return ('cci_ema', 1, 24, 0, 0.4), ('mtm_mean', 0, 3, 0.3, 1)
+
+
+class BinanceNeutral_REG_PMO(BinanceNeutralCompoundBase):
+    # 5. ('reg_ta', 0, 24, 0.5, 1), ('pmo', 1, 3, 0, 1)
+
+    @property
+    def display_name(self):
+        return "4.REG_PMO_8H"
+
+    @property
+    def candle_count_4_cal_factor(self):
+        return 80
+
+    @property
+    def factor_configs(self):
+        return ('reg_ta', 0, 24, 0.5, 1), ('pmo', 1, 3, 0, 1)
