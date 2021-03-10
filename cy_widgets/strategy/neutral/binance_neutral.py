@@ -8,6 +8,9 @@ class BinanceNeutralCompoundBase(NeutralStrategyBase):
     def factor_configs(self):
         NotImplementedError("Need")
 
+    def final_factor_column_name(self, f_name, f_reverse, f_bh, f_diff):
+        return f'{f_name}_{f_reverse}_{f_bh}_{f_diff}_factor'
+
     def cal_factor(self, df):
         for (f_name, f_reverse, f_bh, f_diff, _) in self.factor_configs:
             # 加差分
@@ -20,22 +23,25 @@ class BinanceNeutralCompoundBase(NeutralStrategyBase):
             # 计算因子
             eval(f'{f_name}_indicator')(df, [f_bh], False, add_diff=add_diff)
             # 设置到 factor
+            final_factor_name = self.final_factor_column_name(f_name, f_reverse, f_bh, f_diff)
             if f_reverse:
-                df[f'{f_name}_factor'] = -df[f_column]
+                df[final_factor_name] = -df[f_column]
             else:
-                df[f'{f_name}_factor'] = df[f_column]
+                df[final_factor_name] = df[f_column]
         # 横截面这里没有 factor，先给0
         df['factor'] = 0
         return df
 
     def update_agg_dict(self, agg_dict):
-        for (f_name, _, _, _, _) in self.factor_configs:
-            agg_dict[f'{f_name}_factor'] = 'last'
+        for (f_name, f_reverse, f_bh, f_diff, _) in self.factor_configs:
+            final_factor_name = self.final_factor_column_name(f_name, f_reverse, f_bh, f_diff)
+            agg_dict[final_factor_name] = 'last'
 
     def cal_compound_factors(self, df):
         """ 横截面计算步骤 """
-        for (f_name, _, _, _, f_weight) in self.factor_configs:
-            df['factor'] += df.groupby('s_time')[f_name + '_factor'].rank(method='first') * f_weight
+        for (f_name, f_reverse, f_bh, f_diff, f_weight) in self.factor_configs:
+            final_factor_name = self.final_factor_column_name(f_name, f_reverse, f_bh, f_diff)
+            df['factor'] += df.groupby('s_time')[final_factor_name].rank(method='first') * f_weight
 
 # ======= 具体因子策略 =========
 
@@ -119,3 +125,19 @@ class BinanceNeutral_REG_PMO(BinanceNeutralCompoundBase):
     @property
     def factor_configs(self):
         return ('reg_ta', 0, 24, 0.5, 1), ('pmo', 1, 3, 0, 1)
+
+
+class BinanceNeutral_REG_ZJ_BIAS_CCI_GAP(BinanceNeutralCompoundBase):
+    # 6. ('reg_ta', 0, 30, 0.3, 1), ('reg_ta', 0, 24, 0.5, 1), ('资金流入比例', 1, 96, 0, 0.3), ('bias', 0, 16, 0.5, 1), ('cci', 1, 12, 0.5, 0.4), ('gap', 1, 24, 0.3, 1), ('gap', 1, 48, 0.5, 0.3)
+
+    @property
+    def display_name(self):
+        return "6.REG_ZJ_BIAS_CCI_GAP_6H"
+
+    @property
+    def candle_count_4_cal_factor(self):
+        return 150
+
+    @property
+    def factor_configs(self):
+        return ('reg_ta', 0, 30, 0.3, 1), ('reg_ta', 0, 24, 0.5, 1), ('资金流入比例', 1, 96, 0, 0.3), ('bias', 0, 16, 0.5, 1), ('cci', 1, 12, 0.5, 0.4), ('gap', 1, 24, 0.3, 1), ('gap', 1, 48, 0.5, 0.3)

@@ -114,15 +114,6 @@ def add_diff_columns(df, name, agg_dict, agg_type, diff_d=[0.3, 0.5, 0.7]):
 #         extra_agg_dict[f'成交额std_bh_{n}'] = 'first'
 
 
-# def 资金流入比例_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
-#     # --- 资金流入比例 --- 币安独有的数据
-#     for n in back_hour_list:
-#         volume = df['quote_volume'].rolling(n, min_periods=1).sum()
-#         buy_volume = df['taker_buy_quote_asset_volume'].rolling(n, min_periods=1).sum()
-#         df[f'资金流入比例_bh_{n}'] = (buy_volume / volume).shift(1 if need_shift else 0)
-#         extra_agg_dict[f'资金流入比例_bh_{n}'] = 'first'
-
-
 # def 量比_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
 #     # --- 量比 ---
 #     for n in back_hour_list:
@@ -143,6 +134,20 @@ def add_diff_columns(df, name, agg_dict, agg_type, diff_d=[0.3, 0.5, 0.7]):
 #         df[f'量价相关系数_bh_{n}'] = df['close'].rolling(n).corr(df['quote_volume']).shift(1 if need_shift else 0)
 #         extra_agg_dict[f'量价相关系数_bh_{n}'] = 'first'
 
+def 资金流入比例_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # --- 资金流入比例 --- 币安独有的数据, n
+    for n in back_hour_list:
+        volume = df['quote_volume'].rolling(n, min_periods=1).sum()
+        buy_volume = df['taker_buy_quote_asset_volume'].rolling(n, min_periods=1).sum()
+        f_name = f'资金流入比例_bh_{n}'
+        df[f_name] = (buy_volume / volume).shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+
+
 def rsi_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
     # --- RSI ---  在期货市场很有效
     close_dif = df['close'].diff()
@@ -162,7 +167,7 @@ def rsi_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fa
 
 
 def bias_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
-    # --- bias ---  涨跌幅更好的表达方式 bias 币价偏离均线的比例。
+    # --- bias ---  涨跌幅更好的表达方式 bias 币价偏离均线的比例。n
     for n in back_hour_list:
         f_name = f'bias_bh_{n}'
         ma = df['close'].rolling(n, min_periods=1).mean()
@@ -175,7 +180,7 @@ def bias_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=F
 
 
 def cci_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
-    # --- cci ---  量价相关选股策略
+    # --- cci ---  量价相关选股策略 2*n
     for n in back_hour_list:
         f_name = f'cci_bh_{n}'
         df['tp'] = (df['high'] + df['low'] + df['close']) / 3
@@ -533,7 +538,7 @@ def angle_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=
 
 
 def gap_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
-    # ---- Gap, n*2 ----
+    # ---- Gap, n*3 ----
     for n in back_hour_list:
         ma = df['close'].rolling(window=n, min_periods=1).mean()
         wma = ta.WMA(df['close'], n)
@@ -1300,3 +1305,8 @@ def market_pnl_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_
             add_diff_columns(df, f_name, extra_agg_dict, 'first')
         del df[f'avg_p']
         del df[f'前{n}h平均持仓成本']
+
+
+def 收高差值_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # 当前收盘价减去过去几天最高价的均值
+    pass
