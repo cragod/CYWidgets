@@ -141,3 +141,19 @@ class BinanceNeutral_REG_ZJ_BIAS_CCI_GAP(BinanceNeutralCompoundBase):
     @property
     def factor_configs(self):
         return ('reg_ta', 0, 30, 0.3, 1), ('reg_ta', 0, 24, 0.5, 1), ('资金流入比例', 1, 96, 0, 0.3), ('bias', 0, 16, 0.5, 1), ('cci', 1, 12, 0.5, 0.4), ('gap', 1, 24, 0.3, 1), ('gap', 1, 48, 0.5, 0.3)
+
+
+class BinanceNeutral_RCCD_VIX_MARKETPNL_VMA_BIAS(BinanceNeutralCompoundBase):
+    # 7. ('rccd', 1, 6, 0.3, 0.7), ('vix', 0, 9, 0.5, 1.0), ('market_pnl', 1, 96, 0.7, 0.1), ('vma', 0, 8, 0.5, 0.7), ('bias', 0, 8, 0.7, 1.0)
+
+    @property
+    def display_name(self):
+        return "7. RCCD_VIX_MARKETPNL_VMA_BIAS_8H"
+
+    @property
+    def candle_count_4_cal_factor(self):
+        return 100
+
+    @property
+    def factor_configs(self):
+        return ('rccd', 1, 6, 0.3, 0.7), ('vix', 0, 9, 0.5, 1.0), ('market_pnl', 1, 96, 0.7, 0.1), ('vma', 0, 8, 0.5, 0.7), ('bias', 0, 8, 0.7, 1.0)

@@ -273,7 +273,7 @@ def cmo_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fa
 
 
 def vma_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
-    # VMA 指标
+    # VMA 指标, n
     for n in back_hour_list:
         """
         N=20
@@ -1209,7 +1209,7 @@ def bolling_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_dif
 
 
 def vix_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
-    # vix
+    # vix, 2*n
     for n in back_hour_list:
         df['vix'] = df['close'] / df['close'].shift(n) - 1
         df['up'] = df['vix'].rolling(window=n).max().shift(1)
@@ -1277,7 +1277,7 @@ def atr_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fa
 
 
 def market_pnl_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
-    # 市场盈亏
+    # 市场盈亏 n
     for n in back_hour_list:
         quote_volume_ema = df['quote_volume'].ewm(span=n, adjust=False).mean()
         volume_ema = df['volume'].ewm(span=n, adjust=False).mean()
