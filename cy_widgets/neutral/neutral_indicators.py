@@ -1309,4 +1309,30 @@ def market_pnl_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_
 
 def 收高差值_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
     # 当前收盘价减去过去几天最高价的均值
-    pass
+    for n in back_hour_list:
+        df['high_mean'] = df['high'].rolling(n, min_periods=1).mean()
+        f_name = f'收高差值_bh_{n}'
+        # 去量纲
+        df[f_name] = (df['close'] - df['high_mean']) / df['close']
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+
+
+def pvt_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # PVT 指标 有改动, 2*n
+    for n in back_hour_list:
+        df['PVT'] = (df['close'] - df['close'].shift(1)) / df['close'].shift(1) * df['volume']
+        df['PVT_MA'] = df['PVT'].rolling(n, min_periods=1).mean()
+
+        # 去量纲
+        f_name = f'pvt_bh_{n}'
+        df[f_name] = (df['PVT'] / df['PVT_MA'] - 1)
+        df[f_name] = df[f_name].rolling(n, min_periods=1).sum().shift(1)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')

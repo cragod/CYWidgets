@@ -6,6 +6,8 @@ from fracdiff import fdiff
 from abc import abstractmethod, abstractproperty, abstractclassmethod
 from datetime import datetime, timedelta
 
+pd.options.display.max_columns = None
+
 
 class NeutralStrategyBase:
 
@@ -123,6 +125,7 @@ class NeutralStrategyBase:
         # 多空双向rank
         df['币总数'] = df.groupby(df.index).size()
         df['rank'] = df.groupby('s_time')['factor'].rank(method='first')
+        print('空因子:', df[['symbol', 'factor', 's_time']][pd.isnull(df['factor'])])
         # 关于rank的first参数的说明https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.rank.html
         # 删除不要的币
         df['方向'] = 0
