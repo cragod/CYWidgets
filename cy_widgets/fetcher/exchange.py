@@ -1,5 +1,6 @@
 import time
 import pandas as pd
+from datetime import datetime
 from ..exchange.provider import *
 from cy_components.defines.column_names import *
 from cy_components.helpers.formatter import CandleFormatter as cf, DateFormatter as dfr
@@ -84,7 +85,7 @@ class ExchangeFetcher:
 
         # loop until enough
         while result_df is None or result_df.shape[0] < limit:
-            earliest_date = pd.datetime.now()
+            earliest_date = datetime.now()
             if result_df is not None and result_df.shape[0] > 0:
                 earliest_date = result_df.iloc[0][COL_CANDLE_BEGIN_TIME]
 

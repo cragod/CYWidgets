@@ -95,20 +95,21 @@ class BinanceNeutralStrategy_V1UP_REG_PMO(BinanceNeutralCompoundBase):
         return ('v1_up', True, 9, 0.5, 1), ('reg_ta', False, 24, 0.7, 0.9), ('pmo', True, 3, 0, 1)
 
 
-class BinanceNeutralStrategy_CCIEMA_MTMMEAN(BinanceNeutralCompoundBase):
-    # 4. ('cci_ema', 1, 24, 0, 0.4), ('mtm_mean', 0, 3, 0.3, 1)
+class BinanceNeutralStrategy_V1UP_REG_CCI_BIAS(BinanceNeutralCompoundBase):
+    # 4. ('cci_ema', 1, 24, 0, 0.4), ('mtm_mean', 0, 3, 0.3, 1) 4H
+    # 4. ('v1_up', True, 9, 0.3, 0.3), ('reg_ta', False, 24, 0.7, 0.4), ('cci', 1, 96, 0, 0.4), ('bias', 0, 12, 0.5, 0.9) 6H  2021.3.18 换
 
     @property
     def display_name(self):
-        return "4.CCIEMA_MTMMEAN_4H"
+        return "4.V1UP_REG_CCI_BIAS_6H"
 
     @property
     def candle_count_4_cal_factor(self):
-        return 105
+        return 200
 
     @property
     def factor_configs(self):
-        return ('cci_ema', 1, 24, 0, 0.4), ('mtm_mean', 0, 3, 0.3, 1)
+        return ('v1_up', True, 9, 0.3, 0.3), ('reg_ta', False, 24, 0.7, 0.4), ('cci', 1, 96, 0, 0.4), ('bias', 0, 12, 0.5, 0.9)
 
 
 class BinanceNeutral_REG_PMO(BinanceNeutralCompoundBase):

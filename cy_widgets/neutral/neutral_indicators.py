@@ -1314,6 +1314,7 @@ def 收高差值_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, ad
         f_name = f'收高差值_bh_{n}'
         # 去量纲
         df[f_name] = (df['close'] - df['high_mean']) / df['close']
+        df[f_name] = df[f_name].shift(1 if need_shift else 0)
         extra_agg_dict[f_name] = 'first'
         if type(add_diff) is list:
             add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
