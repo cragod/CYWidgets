@@ -62,20 +62,21 @@ class BinanceNeutralPMOGAPREGStrategy(BinanceNeutralCompoundBase):
         return ('pmo', True, 3, 0, 1), ('gap', True, 24, 0, 0.2), ('reg_ta', False, 12, 0, 0.7)
 
 
-class BinanceNeutralStrategy_REG_RCCD_VIDYA_RWI_APZ(BinanceNeutralCompoundBase):
-    # 2. ('reg_ta', False, 8, 0, 1.0), ('rccd', 1, 6, 0, 0.6), ('vidya', True, 12, 0, 0.1), ('rwih', True, 96, 0, 0.1), ('rwil', True, 48, 0, 0.3), ('apz', True, 9, 0, 0.1)
+class BinanceNeutral_REG_RCCD_VIDYA_RWI_APZ_8H(BinanceNeutralCompoundBase):
+    # ~2~. ('reg_ta', False, 8, 0, 1.0), ('rccd', 1, 6, 0, 0.6), ('vidya', True, 12, 0, 0.1), ('rwih', True, 96, 0, 0.1), ('rwil', True, 48, 0, 0.3), ('apz', True, 9, 0, 0.1) 4H
+    # 2. ('vwap_bias', 1, 12, 0.5, 0.4), ('收高差值', 0, 8, 0.5, 1.0), ('mtm_mean', 1, 96, 0.7, 0.3), ('v1_up', 1, 8, 0.3, 1.0), ('rsi', 1, 36, 0.5, 0.3) 8H 2021.3.22 换
 
     @property
     def display_name(self):
-        return "2.REG_RCCD_VIDYA_RWI_APZ_4H"
+        return "2.REG_RCCD_VIDYA_RWI_APZ_8H"
 
     @property
     def candle_count_4_cal_factor(self):
-        return 100
+        return 200
 
     @property
     def factor_configs(self):
-        return ('reg_ta', False, 8, 0, 1.0), ('rccd', 1, 6, 0, 0.6), ('vidya', True, 12, 0, 0.1), ('rwih', True, 96, 0, 0.1), ('rwil', True, 48, 0, 0.3), ('apz', True, 9, 0, 0.1)
+        return ('vwap_bias', 1, 12, 0.5, 0.4), ('收高差值', 0, 8, 0.5, 1.0), ('mtm_mean', 1, 96, 0.7, 0.3), ('v1_up', 1, 8, 0.3, 1.0), ('rsi', 1, 36, 0.5, 0.3)
 
 
 class BinanceNeutralStrategy_V1UP_REG_PMO(BinanceNeutralCompoundBase):
@@ -96,7 +97,7 @@ class BinanceNeutralStrategy_V1UP_REG_PMO(BinanceNeutralCompoundBase):
 
 
 class BinanceNeutralStrategy_V1UP_REG_CCI_BIAS(BinanceNeutralCompoundBase):
-    # 4. ('cci_ema', 1, 24, 0, 0.4), ('mtm_mean', 0, 3, 0.3, 1) 4H
+    # ~4~. ('cci_ema', 1, 24, 0, 0.4), ('mtm_mean', 0, 3, 0.3, 1) 4H
     # 4. ('v1_up', True, 9, 0.3, 0.3), ('reg_ta', False, 24, 0.7, 0.4), ('cci', 1, 96, 0, 0.4), ('bias', 0, 12, 0.5, 0.9) 6H  2021.3.18 换
 
     @property
