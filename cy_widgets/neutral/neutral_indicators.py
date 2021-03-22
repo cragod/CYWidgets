@@ -157,7 +157,7 @@ def rsi_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fa
         a = df['up'].rolling(n).sum()
         b = df['down'].rolling(n).sum()
 
-        f_name = f'RSI_bh_{n}'
+        f_name = f'rsi_bh_{n}'
         df[f_name] = (a / (a + b)).shift(1 if need_shift else 0)  # RSI
         extra_agg_dict[f_name] = 'first'
         if type(add_diff) is list:
@@ -1107,7 +1107,7 @@ def trix_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=F
 
 
 def vwap_bias_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
-    # bias因子以均价表示
+    # bias因子以均价表示, n
     for n in back_hour_list:
         df['vwap'] = df['volume'] / df['quote_volume']
         ma = df['vwap'].rolling(n, min_periods=1).mean()
