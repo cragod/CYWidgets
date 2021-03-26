@@ -291,7 +291,8 @@ def pmo_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fa
         下穿其信号线，则产生买入/卖出指标。
         """
         f_name = f'pmo_bh_{n}'
-        df['ROC'] = (df['close'] - df['close'].shift(1)) / df['close'].shift(1) * 100  # ROC=(CLOSE-REF(CLOSE,1))/REF(CLOSE,1)*100
+        df['ROC'] = (df['close'] - df['close'].shift(1)) / df['close'].shift(1) * \
+            100  # ROC=(CLOSE-REF(CLOSE,1))/REF(CLOSE,1)*100
         df['ROC_MA'] = df['ROC'].rolling(n, min_periods=1).mean()  # ROC_MA=DMA(ROC,2/N1)
         df['ROC_MA10'] = df['ROC_MA'] * 10  # ROC_MA10=ROC_MA*10
         df['PMO'] = df['ROC_MA10'].rolling(4 * n, min_periods=1).mean()  # PMO=DMA(ROC_MA10,2/N2)
@@ -565,10 +566,12 @@ def ddi_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fa
         max_value1 = df[['abs_high', 'abs_low']].max(axis=1)  # MAX(HIGH_ABS,LOW_ABS)
         # df.loc[df['hl'] > df['hl'].shift(1), 'DMZ'] = max_value1
         # df['DMZ'].fillna(value=0, inplace=True)
-        df['DMZ'] = np.where((df['hl'] > df['hl'].shift(1)), max_value1, 0)  # DMZ=IF(HL>REF(HL,1),MAX(HIGH_ABS,LOW_ABS),0)
+        # DMZ=IF(HL>REF(HL,1),MAX(HIGH_ABS,LOW_ABS),0)
+        df['DMZ'] = np.where((df['hl'] > df['hl'].shift(1)), max_value1, 0)
         # df.loc[df['hl'] < df['hl'].shift(1), 'DMF'] = max_value1
         # df['DMF'].fillna(value=0, inplace=True)
-        df['DMF'] = np.where((df['hl'] < df['hl'].shift(1)), max_value1, 0)  # DMF=IF(HL<REF(HL,1),MAX(HIGH_ABS,LOW_ABS),0)
+        # DMF=IF(HL<REF(HL,1),MAX(HIGH_ABS,LOW_ABS),0)
+        df['DMF'] = np.where((df['hl'] < df['hl'].shift(1)), max_value1, 0)
 
         DMZ_SUM = df['DMZ'].rolling(n).sum()  # SUM(DMZ,N)
         DMF_SUM = df['DMF'].rolling(n).sum()  # SUM(DMF,N)
@@ -789,7 +792,8 @@ def vidya_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=
         """
         df['abs_diff_close'] = abs(df['close'] - df['close'].shift(n))  # ABS(CLOSE-REF(CLOSE,N))
         df['abs_diff_close_sum'] = df['abs_diff_close'].rolling(n).sum()  # SUM(ABS(CLOSE-REF(CLOSE,1))
-        VI = df['abs_diff_close'] / df['abs_diff_close_sum']  # VI=ABS(CLOSE-REF(CLOSE,N))/SUM(ABS(CLOSE-REF(CLOSE,1)),N)
+        # VI=ABS(CLOSE-REF(CLOSE,N))/SUM(ABS(CLOSE-REF(CLOSE,1)),N)
+        VI = df['abs_diff_close'] / df['abs_diff_close_sum']
         VIDYA = VI * df['close'] + (1 - VI) * df['close'].shift(1)  # VIDYA=VI*CLOSE+(1-VI)*REF(CLOSE,1)
         # 进行无量纲处理
         f_name = f'vidya_bh_{n}'
@@ -858,7 +862,8 @@ def rwih_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=F
         df['c1'] = abs(df['high'] - df['low'])  # ABS(HIGH-LOW)
         df['c2'] = abs(df['close'] - df['close'].shift(1))  # ABS(HIGH-REF(CLOSE,1))
         df['c3'] = abs(df['high'] - df['close'].shift(1))  # ABS(REF(CLOSE,1)-LOW)
-        df['TR'] = df[['c1', 'c2', 'c3']].max(axis=1)  # TR=MAX(ABS(HIGH-LOW),ABS(HIGH-REF(CLOSE,1)),ABS(REF(CLOSE,1)-LOW))
+        # TR=MAX(ABS(HIGH-LOW),ABS(HIGH-REF(CLOSE,1)),ABS(REF(CLOSE,1)-LOW))
+        df['TR'] = df[['c1', 'c2', 'c3']].max(axis=1)
         df['ATR'] = df['TR'].rolling(n, min_periods=1).mean()  # ATR=MA(TR,N)
         df['RWIH'] = (df['high'] - df['low'].shift(1)) / (df['ATR'] * np.sqrt(n))  # RWIH=(HIGH-REF(LOW,1))/(ATR*√N)
 
@@ -893,7 +898,8 @@ def rwil_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=F
         df['c1'] = abs(df['high'] - df['low'])  # ABS(HIGH-LOW)
         df['c2'] = abs(df['close'] - df['close'].shift(1))  # ABS(HIGH-REF(CLOSE,1))
         df['c3'] = abs(df['high'] - df['close'].shift(1))  # ABS(REF(CLOSE,1)-LOW)
-        df['TR'] = df[['c1', 'c2', 'c3']].max(axis=1)  # TR=MAX(ABS(HIGH-LOW),ABS(HIGH-REF(CLOSE,1)),ABS(REF(CLOSE,1)-LOW))
+        # TR=MAX(ABS(HIGH-LOW),ABS(HIGH-REF(CLOSE,1)),ABS(REF(CLOSE,1)-LOW))
+        df['TR'] = df[['c1', 'c2', 'c3']].max(axis=1)
         df['ATR'] = df['TR'].rolling(n, min_periods=1).mean()  # ATR=MA(TR,N)
         df['RWIL'] = (df['high'].shift(1) - df['low']) / (df['ATR'] * np.sqrt(n))  # RWIL=(REF(HIGH,1)-LOW)/(ATR*√N)
 
@@ -926,9 +932,9 @@ def ma_displaced_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, ad
         ma = df['close'].rolling(2 * n, min_periods=1).mean()  # MA(CLOSE,N) 固定俩个参数之间的关系  减少参数
         ref = ma.shift(n)  # MADisplaced=REF(MA_CLOSE,M)
 
-        f_column = f'ma_displaced_bh_{n}'
-        df[f_column] = df['close'] / ref - 1  # 去量纲
-        df[f_column] = df[f_column].shift(1 if need_shift else 0)
+        f_name = f'ma_displaced_bh_{n}'
+        df[f_name] = df['close'] / ref - 1  # 去量纲
+        df[f_name] = df[f_name].shift(1 if need_shift else 0)
         process_general_procedure(df, f_name, extra_agg_dict, add_diff)
 
 
@@ -1044,7 +1050,8 @@ def mtm_mean_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_di
     # mtm_mean
     for n in back_hour_list:
         f_name = f'mtm_mean_bh_{n}'
-        df[f_name] = (df['close'] / df['close'].shift(n) - 1).rolling(window=n, min_periods=1).mean().shift(1 if need_shift else 0)
+        df[f_name] = (df['close'] / df['close'].shift(n) - 1).rolling(window=n,
+                                                                      min_periods=1).mean().shift(1 if need_shift else 0)
         process_general_procedure(df, f_name, extra_agg_dict, add_diff)
 
 
@@ -1120,7 +1127,8 @@ def vix_bw_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff
         df[f_name] = df[f_name].shift(1 if need_shift else 0)
         process_general_procedure(df, f_name, extra_agg_dict, add_diff)
 
-        df.drop(['vix', 'vix_median', 'vix_std', 'max', 'min', 'vix_score', 'vix_upper', 'vix_lower'], axis=1, inplace=True)
+        df.drop(['vix', 'vix_median', 'vix_std', 'max', 'min', 'vix_score',
+                'vix_upper', 'vix_lower'], axis=1, inplace=True)
 
 
 def atr_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
@@ -1449,10 +1457,12 @@ def adtm_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=F
         max_value1 = df[['h_o', 'diff_open']].max(axis=1)  # MAX(HIGH-OPEN,OPEN-REF(OPEN,1))
         # df.loc[df['open'] > df['open'].shift(1), 'DTM'] = max_value1
         # df['DTM'].fillna(value=0, inplace=True)
-        df['DTM'] = np.where(df['open'] > df['open'].shift(1), max_value1, 0)  # DBM=IF(OPEN<REF(OPEN,1),MAX(OPEN-LOW,REF(OPEN,1)-OPEN),0)
+        # DBM=IF(OPEN<REF(OPEN,1),MAX(OPEN-LOW,REF(OPEN,1)-OPEN),0)
+        df['DTM'] = np.where(df['open'] > df['open'].shift(1), max_value1, 0)
         df['o_l'] = df['open'] - df['low']  # OPEN-LOW
         max_value2 = df[['o_l', 'diff_open']].max(axis=1)  # MAX(OPEN-LOW,REF(OPEN,1)-OPEN),0)
-        df['DBM'] = np.where(df['open'] < df['open'].shift(1), max_value2, 0)  # DBM=IF(OPEN<REF(OPEN,1),MAX(OPEN-LOW,REF(OPEN,1)-OPEN),0)
+        # DBM=IF(OPEN<REF(OPEN,1),MAX(OPEN-LOW,REF(OPEN,1)-OPEN),0)
+        df['DBM'] = np.where(df['open'] < df['open'].shift(1), max_value2, 0)
         # df.loc[df['open'] < df['open'].shift(1), 'DBM'] = max_value2
         # df['DBM'].fillna(value=0, inplace=True)
 
@@ -1525,7 +1535,8 @@ def zlmacd_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff
         n2 = 5 * n  # 固定俩参数的倍数关系减少参数
         ema2 = df['close'].ewm(n2, adjust=False).mean()  # EMA(CLOSE,N2)
         ema_ema_2 = ema2.ewm(n2, adjust=False).mean()  # EMA(EMA(CLOSE,N2),N2)
-        ZLMACD = (2 * ema1 - ema_ema_1) - (2 * ema2 - ema_ema_2)  # ZLMACD=(2*EMA(CLOSE,N1)-EMA(EMA(CLOSE,N1),N1))-(2*EMA(CLOSE,N2)-EMA(EMA(CLOSE,N2),N2))
+        # ZLMACD=(2*EMA(CLOSE,N1)-EMA(EMA(CLOSE,N1),N1))-(2*EMA(CLOSE,N2)-EMA(EMA(CLOSE,N2),N2))
+        ZLMACD = (2 * ema1 - ema_ema_1) - (2 * ema2 - ema_ema_2)
         f_name = f'zlmacd_bh_{n}'
         df[f_name] = df['close'] / ZLMACD - 1
         df[f_name] = df[f_name].shift(1 if need_shift else 0)
@@ -1600,11 +1611,13 @@ def kdjd_k_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff
         """
         min_low = df['low'].rolling(n).min()  # LOW_N=MIN(LOW,N)
         max_high = df['high'].rolling(n).max()  # HIGH_N=MAX(HIGH,N)
-        Stochastics = (df['close'] - min_low) / (max_high - min_low) * 100  # Stochastics=(CLOSE-LOW_N)/(HIGH_N-LOW_N)*100
+        Stochastics = (df['close'] - min_low) / (max_high - min_low) * \
+            100  # Stochastics=(CLOSE-LOW_N)/(HIGH_N-LOW_N)*100
         # 固定俩参数的倍数关系
         Stochastics_LOW = Stochastics.rolling(n * 3).min()  # Stochastics_LOW=MIN(Stochastics,M)
         Stochastics_HIGH = Stochastics.rolling(n * 3).max()  # Stochastics_HIGH=MAX(Stochastics,M)
-        Stochastics_DOUBLE = (Stochastics - Stochastics_LOW) / (Stochastics_HIGH - Stochastics_LOW)  # Stochastics_DOUBLE=(Stochastics-Stochastics_LOW)/(Stochastics_HIGH-Stochastics_LOW)*100
+        # Stochastics_DOUBLE=(Stochastics-Stochastics_LOW)/(Stochastics_HIGH-Stochastics_LOW)*100
+        Stochastics_DOUBLE = (Stochastics - Stochastics_LOW) / (Stochastics_HIGH - Stochastics_LOW)
         K = Stochastics_DOUBLE.ewm(com=2).mean()  # K=SMA(Stochastics_DOUBLE,3,1)
         D = K.ewm(com=2).mean()  # D=SMA(K,3,1)
         f_name = f'kdjd_k_bh_{n}'
@@ -1634,11 +1647,13 @@ def kdjd_d_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff
         """
         min_low = df['low'].rolling(n).min()  # LOW_N=MIN(LOW,N)
         max_high = df['high'].rolling(n).max()  # HIGH_N=MAX(HIGH,N)
-        Stochastics = (df['close'] - min_low) / (max_high - min_low) * 100  # Stochastics=(CLOSE-LOW_N)/(HIGH_N-LOW_N)*100
+        Stochastics = (df['close'] - min_low) / (max_high - min_low) * \
+            100  # Stochastics=(CLOSE-LOW_N)/(HIGH_N-LOW_N)*100
         # 固定俩参数的倍数关系
         Stochastics_LOW = Stochastics.rolling(n * 3).min()  # Stochastics_LOW=MIN(Stochastics,M)
         Stochastics_HIGH = Stochastics.rolling(n * 3).max()  # Stochastics_HIGH=MAX(Stochastics,M)
-        Stochastics_DOUBLE = (Stochastics - Stochastics_LOW) / (Stochastics_HIGH - Stochastics_LOW)  # Stochastics_DOUBLE=(Stochastics-Stochastics_LOW)/(Stochastics_HIGH-Stochastics_LOW)*100
+        # Stochastics_DOUBLE=(Stochastics-Stochastics_LOW)/(Stochastics_HIGH-Stochastics_LOW)*100
+        Stochastics_DOUBLE = (Stochastics - Stochastics_LOW) / (Stochastics_HIGH - Stochastics_LOW)
         K = Stochastics_DOUBLE.ewm(com=2).mean()  # K=SMA(Stochastics_DOUBLE,3,1)
         D = K.ewm(com=2).mean()  # D=SMA(K,3,1)
         f_name = f'kdjd_d_bh_{n}'
