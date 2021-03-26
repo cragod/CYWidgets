@@ -1190,3 +1190,457 @@ def pvt_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fa
         df[f_name] = (df['PVT'] / df['PVT_MA'] - 1)
         df[f_name] = df[f_name].rolling(n, min_periods=1).sum().shift(1)
         process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
+
+def macd_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    """macd, 3n"""
+    for n in back_hour_list:
+        """
+        N1=20
+        N2=40
+        N3=5
+        MACD=EMA(CLOSE,N1)-EMA(CLOSE,N2)
+        MACD_SIGNAL=EMA(MACD,N3)
+        MACD_HISTOGRAM=MACD-MACD_SIGNAL
+
+        MACD 指标衡量快速均线与慢速均线的差值。由于慢速均线反映的是
+        之前较长时间的价格的走向，而快速均线反映的是较短时间的价格的
+        走向，所以在上涨趋势中快速均线会比慢速均线涨的快，而在下跌趋
+        势中快速均线会比慢速均线跌得快。所以 MACD 上穿/下穿 0 可以作
+        为一种构造交易信号的方式。另外一种构造交易信号的方式是求
+        MACD 与其移动平均（信号线）的差值得到 MACD 柱，利用 MACD
+        柱上穿/下穿 0（即 MACD 上穿/下穿其信号线）来构造交易信号。这
+        种方式在其他指标的使用中也可以借鉴。
+        """
+        short_windows = n
+        long_windows = 3 * n
+        macd_windows = int(1.618 * n)
+
+        df['ema_short'] = df['close'].ewm(span=short_windows, adjust=False).mean()  # EMA(CLOSE,N1)
+        df['ema_long'] = df['close'].ewm(span=long_windows, adjust=False).mean()  # EMA(CLOSE,N2)
+        df['dif'] = df['ema_short'] - df['ema_long']  # MACD=EMA(CLOSE,N1)-EMA(CLOSE,N2)
+        df['dea'] = df['dif'].ewm(span=macd_windows, adjust=False).mean()  # MACD_SIGNAL=EMA(MACD,N3)
+        df['macd'] = 2 * (df['dif'] - df['dea'])  # MACD_HISTOGRAM=MACD-MACD_SIGNAL  一般看图指标计算对应实际乘以了2倍
+        # 进行去量纲
+        f_name = f'macd_bh_{n}'
+        df[f_name] = df['macd'] / df['macd'].rolling(macd_windows, min_periods=1).mean() - 1
+        df[f_name] = df[f_name].shift(1 if need_shift else 0)  # 取前一周期防止未来函数  实盘中不需要
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
+        # 删除中间数据
+        del df['ema_short']
+        del df['ema_long']
+        del df['dif']
+        del df['dea']
+
+
+def ema_d_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # 计算ema的差值, 3n
+    for n in back_hour_list:
+        """
+        与求MACD的dif线一样
+        """
+        short_windows = n
+        long_windows = 3 * n
+        df['ema_short'] = df['close'].ewm(span=short_windows, adjust=False).mean()  # 计算短周期ema
+        df['ema_long'] = df['close'].ewm(span=long_windows, adjust=False).mean()  # 计算长周期的ema
+        df['diff_ema'] = df['ema_short'] - df['ema_long']  # 计算俩条线之间的差值
+        df['diff_ema_mean'] = df['diff_ema'].ewm(span=n, adjust=False).mean()
+
+        f_name = f'ema_d_bh_{n}'
+        df[f_name] = df['diff_ema'] / df['diff_ema_mean'] - 1  # 去量纲
+        df[f_name] = df[f_name].shift(1 if need_shift else 0)  # 取前一周期防止未来函数  实盘中不需要
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
+        # 删除中间数据
+        del df['ema_short']
+        del df['ema_long']
+        del df['diff_ema']
+        del df['diff_ema_mean']
+
+
+def bbi_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # 计算BBI 的bias
+    for n in back_hour_list:
+        """
+        BBI=(MA(CLOSE,3)+MA(CLOSE,6)+MA(CLOSE,12)+MA(CLOSE,24))/4
+        BBI 是对不同时间长度的移动平均线取平均，能够综合不同移动平均
+        线的平滑性和滞后性。如果收盘价上穿/下穿 BBI 则产生买入/卖出信
+        号。
+        """
+        # 将BBI指标计算出来求bias
+        ma1 = df['close'].rolling(n, min_periods=1).mean()
+        ma2 = df['close'].rolling(2 * n, min_periods=1).mean()
+        ma3 = df['close'].rolling(4 * n, min_periods=1).mean()
+        ma4 = df['close'].rolling(8 * n, min_periods=1).mean()
+        bbi = (ma1 + ma2 + ma3 + ma4) / 4  # BBI=(MA(CLOSE,3)+MA(CLOSE,6)+MA(CLOSE,12)+MA(CLOSE,24))/4
+        f_name = f'bbi_bh_{n}'
+        df[f_name] = df['close'] / bbi - 1
+        df[f_name] = df[f_name].shift(1 if need_shift else 0)  # 取前一周期防止未来函数  实盘中不需要
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
+
+def dpo_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # 计算 DPO
+    for n in back_hour_list:
+        """
+        N=20
+        DPO=CLOSE-REF(MA(CLOSE,N),N/2+1)
+        DPO 是当前价格与延迟的移动平均线的差值，通过去除前一段时间
+        的移动平均价格来减少长期的趋势对短期价格波动的影响。DPO>0
+        表示目前处于多头市场；DPO<0 表示当前处于空头市场。我们通过
+        DPO 上穿/下穿 0 线来产生买入/卖出信号。
+
+        """
+        ma = df['close'].rolling(n, min_periods=1).mean()  # 求close移动平均线
+        ref = ma.shift(int(n / 2 + 1))  # REF(MA(CLOSE,N),N/2+1)
+        df['DPO'] = df['close'] - ref  # DPO=CLOSE-REF(MA(CLOSE,N),N/2+1)
+        df['DPO_ma'] = df['DPO'].rolling(n, min_periods=1).mean()  # 求均值
+        f_name = f'dpo_bh_{n}'
+        df[f_name] = df['DPO'] / df['DPO_ma'] - 1  # 去量纲
+        df[f_name] = df[f_name].shift(1 if need_shift else 0)  # 取前一周期防止未来函数  实盘中不需要
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
+        # 删除中间数据
+        del df['DPO']
+        del df['DPO_ma']
+
+
+def er_bull_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # 计算 ER
+    for n in back_hour_list:
+        """
+        N=20
+        BullPower=HIGH-EMA(CLOSE,N)
+        BearPower=LOW-EMA(CLOSE,N)
+        ER 为动量指标。用来衡量市场的多空力量对比。在多头市场，人们
+        会更贪婪地在接近高价的地方买入，BullPower 越高则当前多头力量
+        越强；而在空头市场，人们可能因为恐惧而在接近低价的地方卖出。
+        BearPower 越低则当前空头力量越强。当两者都大于 0 时，反映当前
+        多头力量占据主导地位；两者都小于0则反映空头力量占据主导地位。
+        如果 BearPower 上穿 0，则产生买入信号；
+        如果 BullPower 下穿 0，则产生卖出信号。
+        """
+        ema = df['close'].ewm(n, adjust=False).mean()  # EMA(CLOSE,N)
+        bull_power = df['high'] - ema  # 越高表示上涨 牛市 BullPower=HIGH-EMA(CLOSE,N)
+        bear_power = df['low'] - ema  # 越低表示下降越厉害  熊市 BearPower=LOW-EMA(CLOSE,N)
+        f_name = f'er_bull_bh_{n}'
+        df[f_name] = bull_power / ema  # 去量纲
+        df[f_name] = df[f_name].shift(1 if need_shift else 0)
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
+
+def er_bear_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # 计算 ER
+    for n in back_hour_list:
+        """
+        N=20
+        BullPower=HIGH-EMA(CLOSE,N)
+        BearPower=LOW-EMA(CLOSE,N)
+        ER 为动量指标。用来衡量市场的多空力量对比。在多头市场，人们
+        会更贪婪地在接近高价的地方买入，BullPower 越高则当前多头力量
+        越强；而在空头市场，人们可能因为恐惧而在接近低价的地方卖出。
+        BearPower 越低则当前空头力量越强。当两者都大于 0 时，反映当前
+        多头力量占据主导地位；两者都小于0则反映空头力量占据主导地位。
+        如果 BearPower 上穿 0，则产生买入信号；
+        如果 BullPower 下穿 0，则产生卖出信号。
+        """
+        ema = df['close'].ewm(n, adjust=False).mean()  # EMA(CLOSE,N)
+        bull_power = df['high'] - ema  # 越高表示上涨 牛市 BullPower=HIGH-EMA(CLOSE,N)
+        bear_power = df['low'] - ema  # 越低表示下降越厉害  熊市 BearPower=LOW-EMA(CLOSE,N)
+        f_name = f'er_bear_bh_{n}'
+        df[f_name] = bear_power / ema  # 去量纲
+        df[f_name] = df[f_name].shift(1 if need_shift else 0)
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
+
+def po_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # PO指标
+    for n in back_hour_list:
+        """
+        EMA_SHORT=EMA(CLOSE,9)
+        EMA_LONG=EMA(CLOSE,26)
+        PO=(EMA_SHORT-EMA_LONG)/EMA_LONG*100
+        PO 指标求的是短期均线与长期均线之间的变化率。
+        如果 PO 上穿 0，则产生买入信号；
+        如果 PO 下穿 0，则产生卖出信号。
+        """
+        ema_short = df['close'].ewm(n, adjust=False).mean()  # 短周期的ema
+        ema_long = df['close'].ewm(n * 3, adjust=False).mean()  # 长周期的ema   固定倍数关系 减少参数
+        f_name = f'po_bh_{n}'
+        df[f_name] = (ema_short - ema_long) / ema_long * 100  # 去量纲
+        df[f_name] = df[f_name].shift(1 if need_shift else 0)
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
+
+def t3_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # T3 指标
+    for n in back_hour_list:
+        """
+        N=20
+        VA=0.5
+        T1=EMA(CLOSE,N)*(1+VA)-EMA(EMA(CLOSE,N),N)*VA
+        T2=EMA(T1,N)*(1+VA)-EMA(EMA(T1,N),N)*VA
+        T3=EMA(T2,N)*(1+VA)-EMA(EMA(T2,N),N)*VA
+        当 VA 是 0 时，T3 就是三重指数平均线，此时具有严重的滞后性；当
+        VA 是 0 时，T3 就是三重双重指数平均线（DEMA），此时可以快速
+        反应价格的变化。VA 值是 T3 指标的一个关键参数，可以用来调节
+        T3 指标的滞后性。如果收盘价上穿/下穿 T3，则产生买入/卖出信号。
+        """
+        va = 0.5
+        ema = df['close'].ewm(n, adjust=False).mean()  # EMA(CLOSE,N)
+        ema_ema = ema.ewm(n, adjust=False).mean()  # EMA(EMA(CLOSE,N),N)
+        T1 = ema * (1 + va) - ema_ema * va  # T1=EMA(CLOSE,N)*(1+VA)-EMA(EMA(CLOSE,N),N)*VA
+        T1_ema = T1.ewm(n, adjust=False).mean()  # EMA(T1,N)
+        T1_ema_ema = T1_ema.ewm(n, adjust=False).mean()  # EMA(EMA(T1,N),N)
+        T2 = T1_ema * (1 + va) - T1_ema_ema * va  # T2=EMA(T1,N)*(1+VA)-EMA(EMA(T1,N),N)*VA
+        T2_ema = T2.ewm(n, adjust=False).mean()  # EMA(T2,N)
+        T2_ema_ema = T2_ema.ewm(n, adjust=False).mean()  # EMA(EMA(T2,N),N)
+        T3 = T2_ema * (1 + va) - T2_ema_ema * va  # T3=EMA(T2,N)*(1+VA)-EMA(EMA(T2,N),N)*VA
+        f_name = f't3_bh_{n}'
+        df[f_name] = df['close'] / T3 - 1  # 去量纲
+        df[f_name] = df[f_name].shift(1 if need_shift else 0)
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
+
+def pos_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # POS指标
+    for n in back_hour_list:
+        """
+        N=100
+        PRICE=(CLOSE-REF(CLOSE,N))/REF(CLOSE,N)
+        POS=(PRICE-MIN(PRICE,N))/(MAX(PRICE,N)-MIN(PRICE,N))
+        POS 指标衡量当前的 N 天收益率在过去 N 天的 N 天收益率最大值和
+        最小值之间的位置。当 POS 上穿 80 时产生买入信号；当 POS 下穿
+        20 时产生卖出信号。
+        """
+        ref = df['close'].shift(n)  # REF(CLOSE,N)
+        price = (df['close'] - ref) / ref  # PRICE=(CLOSE-REF(CLOSE,N))/REF(CLOSE,N)
+        min_price = price.rolling(n).min()  # MIN(PRICE,N)
+        max_price = price.rolling(n).max()  # MAX(PRICE,N)
+        pos = (price - min_price) / (max_price - min_price)  # POS=(PRICE-MIN(PRICE,N))/(MAX(PRICE,N)-MIN(PRICE,N))
+        f_name = f'pos_bh_{n}'
+        df[f_name] = pos.shift(1 if need_shift else 0)
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
+
+def adtm_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # ADM 指标
+    for n in back_hour_list:
+        """
+        N=20
+        DTM=IF(OPEN>REF(OPEN,1),MAX(HIGH-OPEN,OPEN-REF(OP
+        EN,1)),0)
+        DBM=IF(OPEN<REF(OPEN,1),MAX(OPEN-LOW,REF(OPEN,1)-O
+        PEN),0)
+        STM=SUM(DTM,N)
+        SBM=SUM(DBM,N)
+        ADTM=(STM-SBM)/MAX(STM,SBM)
+        ADTM 通过比较开盘价往上涨的幅度和往下跌的幅度来衡量市场的
+        人气。ADTM 的值在-1 到 1 之间。当 ADTM 上穿 0.5 时，说明市场
+        人气较旺；当 ADTM 下穿-0.5 时，说明市场人气较低迷。我们据此构
+        造交易信号。
+        当 ADTM 上穿 0.5 时产生买入信号；
+        当 ADTM 下穿-0.5 时产生卖出信号。
+
+        """
+        df['h_o'] = df['high'] - df['open']  # HIGH-OPEN
+        df['diff_open'] = df['open'] - df['open'].shift(1)  # OPEN-REF(OPEN,1)
+        max_value1 = df[['h_o', 'diff_open']].max(axis=1)  # MAX(HIGH-OPEN,OPEN-REF(OPEN,1))
+        # df.loc[df['open'] > df['open'].shift(1), 'DTM'] = max_value1
+        # df['DTM'].fillna(value=0, inplace=True)
+        df['DTM'] = np.where(df['open'] > df['open'].shift(1), max_value1, 0)  # DBM=IF(OPEN<REF(OPEN,1),MAX(OPEN-LOW,REF(OPEN,1)-OPEN),0)
+        df['o_l'] = df['open'] - df['low']  # OPEN-LOW
+        max_value2 = df[['o_l', 'diff_open']].max(axis=1)  # MAX(OPEN-LOW,REF(OPEN,1)-OPEN),0)
+        df['DBM'] = np.where(df['open'] < df['open'].shift(1), max_value2, 0)  # DBM=IF(OPEN<REF(OPEN,1),MAX(OPEN-LOW,REF(OPEN,1)-OPEN),0)
+        # df.loc[df['open'] < df['open'].shift(1), 'DBM'] = max_value2
+        # df['DBM'].fillna(value=0, inplace=True)
+
+        df['STM'] = df['DTM'].rolling(n).sum()  # STM=SUM(DTM,N)
+        df['SBM'] = df['DBM'].rolling(n).sum()  # SBM=SUM(DBM,N)
+        max_value3 = df[['STM', 'SBM']].max(axis=1)  # MAX(STM,SBM)
+        ADTM = (df['STM'] - df['SBM']) / max_value3  # ADTM=(STM-SBM)/MAX(STM,SBM)
+        f_name = f'adtm_bh_{n}'
+        df[f_name] = ADTM.shift(1 if need_shift else 0)
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
+        # 删除中间数据
+        del df['h_o']
+        del df['diff_open']
+        del df['o_l']
+        del df['STM']
+        del df['SBM']
+        del df['DBM']
+        del df['DTM']
+
+
+def hma_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # HMA 指标
+    for n in back_hour_list:
+        """
+        N=20
+        HMA=MA(HIGH,N)
+        HMA 指标为简单移动平均线把收盘价替换为最高价。当最高价上穿/
+        下穿 HMA 时产生买入/卖出信号。
+        """
+        hma = df['high'].rolling(n, min_periods=1).mean()  # HMA=MA(HIGH,N)
+        f_name = f'hma_bh_{n}'
+        df[f_name] = df['high'] / hma - 1  # 去量纲
+        df[f_name] = df[f_name].shift(1 if need_shift else 0)
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
+
+def sroc_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # SROC 指标
+    for n in back_hour_list:
+        """
+        N=13
+        M=21
+        EMAP=EMA(CLOSE,N)
+        SROC=(EMAP-REF(EMAP,M))/REF(EMAP,M)
+        SROC 与 ROC 类似，但是会对收盘价进行平滑处理后再求变化率。
+        """
+        ema = df['close'].ewm(n, adjust=False).mean()  # EMAP=EMA(CLOSE,N)
+        ref = ema.shift(2 * n)  # 固定俩参数之间的倍数 REF(EMAP,M)
+        f_name = f'sroc_bh_{n}'
+        df[f_name] = (ema - ref) / ref  # SROC=(EMAP-REF(EMAP,M))/REF(EMAP,M)
+        df[f_name] = df[f_name].shift(1 if need_shift else 0)
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
+
+def zlmacd_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # ZLMACD 指标
+    for n in back_hour_list:
+        """
+        N1=20
+        N2=100
+        ZLMACD=(2*EMA(CLOSE,N1)-EMA(EMA(CLOSE,N1),N1))-(2*EM
+        A(CLOSE,N2)-EMA(EMA(CLOSE,N2),N2))
+        ZLMACD 指标是对 MACD 指标的改进，它在计算中使用 DEMA 而不
+        是 EMA，可以克服 MACD 指标的滞后性问题。如果 ZLMACD 上穿/
+        下穿 0，则产生买入/卖出信号。
+        """
+        ema1 = df['close'].ewm(n, adjust=False).mean()  # EMA(CLOSE,N1)
+        ema_ema_1 = ema1.ewm(n, adjust=False).mean()  # EMA(EMA(CLOSE,N1),N1)
+        n2 = 5 * n  # 固定俩参数的倍数关系减少参数
+        ema2 = df['close'].ewm(n2, adjust=False).mean()  # EMA(CLOSE,N2)
+        ema_ema_2 = ema2.ewm(n2, adjust=False).mean()  # EMA(EMA(CLOSE,N2),N2)
+        ZLMACD = (2 * ema1 - ema_ema_1) - (2 * ema2 - ema_ema_2)  # ZLMACD=(2*EMA(CLOSE,N1)-EMA(EMA(CLOSE,N1),N1))-(2*EMA(CLOSE,N2)-EMA(EMA(CLOSE,N2),N2))
+        f_name = f'zlmacd_bh_{n}'
+        df[f_name] = df['close'] / ZLMACD - 1
+        df[f_name] = df[f_name].shift(1 if need_shift else 0)
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
+
+def htma_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # TMA 指标
+    for n in back_hour_list:
+        """
+        N=20
+        CLOSE_MA=MA(CLOSE,N)
+        TMA=MA(CLOSE_MA,N)
+        TMA 均线与其他的均线类似，不同的是，像 EMA 这类的均线会赋予
+        越靠近当天的价格越高的权重，而 TMA 则赋予考虑的时间段内时间
+        靠中间的价格更高的权重。如果收盘价上穿/下穿 TMA 则产生买入/
+        卖出信号。
+        """
+        ma = df['close'].rolling(n, min_periods=1).mean()  # CLOSE_MA=MA(CLOSE,N)
+        tma = ma.rolling(n, min_periods=1).mean()  # TMA=MA(CLOSE_MA,N)
+        f_name = f'htma_bh_{n}'
+        df[f_name] = df['close'] / tma - 1
+        df[f_name] = df[f_name].shift(1 if need_shift else 0)
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
+
+def typ_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # TYP 指标
+    for n in back_hour_list:
+        """
+        N1=10
+        N2=30
+        TYP=(CLOSE+HIGH+LOW)/3
+        TYPMA1=EMA(TYP,N1)
+        TYPMA2=EMA(TYP,N2)
+        在技术分析中，典型价格（最高价+最低价+收盘价）/3 经常被用来代
+        替收盘价。比如我们在利用均线交叉产生交易信号时，就可以用典型
+        价格的均线。
+        TYPMA1 上穿/下穿 TYPMA2 时产生买入/卖出信号。
+        """
+        TYP = (df['close'] + df['high'] + df['low']) / 3  # TYP=(CLOSE+HIGH+LOW)/3
+        TYPMA1 = TYP.ewm(n, adjust=False).mean()  # TYPMA1=EMA(TYP,N1)
+        TYPMA2 = TYP.ewm(n * 3, adjust=False).mean()  # TYPMA2=EMA(TYP,N2) 并且固定俩参数倍数关系
+        diff_TYP = TYPMA1 - TYPMA2  # 俩ema相差
+        diff_TYP_mean = diff_TYP.rolling(n, min_periods=1).mean()
+        # 无量纲
+        f_name = f'typ_bh_{n}'
+        df[f_name] = diff_TYP / diff_TYP_mean - 1
+        df[f_name] = df[f_name].shift(1 if need_shift else 0)
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
+
+def kdjd_k_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # KDJD 指标
+    for n in back_hour_list:
+        """
+        N=20
+        M=60
+        LOW_N=MIN(LOW,N)
+        HIGH_N=MAX(HIGH,N)
+        Stochastics=(CLOSE-LOW_N)/(HIGH_N-LOW_N)*100
+        Stochastics_LOW=MIN(Stochastics,M)
+        Stochastics_HIGH=MAX(Stochastics,M)
+        Stochastics_DOUBLE=(Stochastics-Stochastics_LOW)/(Stochastics_HIGH-Stochastics_LOW)*100
+        K=SMA(Stochastics_DOUBLE,3,1)
+        D=SMA(K,3,1)
+        KDJD 可以看作 KDJ 的变形。KDJ 计算过程中的变量 Stochastics 用
+        来衡量收盘价位于最近 N 天最高价和最低价之间的位置。而 KDJD 计
+        算过程中的 Stochastics_DOUBLE 可以用来衡量 Stochastics 在最近
+        N 天的 Stochastics 最大值与最小值之间的位置。我们这里将其用作
+        动量指标。当 D 上穿 70/下穿 30 时，产生买入/卖出信号。
+        """
+        min_low = df['low'].rolling(n).min()  # LOW_N=MIN(LOW,N)
+        max_high = df['high'].rolling(n).max()  # HIGH_N=MAX(HIGH,N)
+        Stochastics = (df['close'] - min_low) / (max_high - min_low) * 100  # Stochastics=(CLOSE-LOW_N)/(HIGH_N-LOW_N)*100
+        # 固定俩参数的倍数关系
+        Stochastics_LOW = Stochastics.rolling(n * 3).min()  # Stochastics_LOW=MIN(Stochastics,M)
+        Stochastics_HIGH = Stochastics.rolling(n * 3).max()  # Stochastics_HIGH=MAX(Stochastics,M)
+        Stochastics_DOUBLE = (Stochastics - Stochastics_LOW) / (Stochastics_HIGH - Stochastics_LOW)  # Stochastics_DOUBLE=(Stochastics-Stochastics_LOW)/(Stochastics_HIGH-Stochastics_LOW)*100
+        K = Stochastics_DOUBLE.ewm(com=2).mean()  # K=SMA(Stochastics_DOUBLE,3,1)
+        D = K.ewm(com=2).mean()  # D=SMA(K,3,1)
+        f_name = f'kdjd_k_bh_{n}'
+        df[f_name] = K.shift(1 if need_shift else 0)
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
+
+def kdjd_d_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # KDJD 指标
+    for n in back_hour_list:
+        """
+        N=20
+        M=60
+        LOW_N=MIN(LOW,N)
+        HIGH_N=MAX(HIGH,N)
+        Stochastics=(CLOSE-LOW_N)/(HIGH_N-LOW_N)*100
+        Stochastics_LOW=MIN(Stochastics,M)
+        Stochastics_HIGH=MAX(Stochastics,M)
+        Stochastics_DOUBLE=(Stochastics-Stochastics_LOW)/(Stochastics_HIGH-Stochastics_LOW)*100
+        K=SMA(Stochastics_DOUBLE,3,1)
+        D=SMA(K,3,1)
+        KDJD 可以看作 KDJ 的变形。KDJ 计算过程中的变量 Stochastics 用
+        来衡量收盘价位于最近 N 天最高价和最低价之间的位置。而 KDJD 计
+        算过程中的 Stochastics_DOUBLE 可以用来衡量 Stochastics 在最近
+        N 天的 Stochastics 最大值与最小值之间的位置。我们这里将其用作
+        动量指标。当 D 上穿 70/下穿 30 时，产生买入/卖出信号。
+        """
+        min_low = df['low'].rolling(n).min()  # LOW_N=MIN(LOW,N)
+        max_high = df['high'].rolling(n).max()  # HIGH_N=MAX(HIGH,N)
+        Stochastics = (df['close'] - min_low) / (max_high - min_low) * 100  # Stochastics=(CLOSE-LOW_N)/(HIGH_N-LOW_N)*100
+        # 固定俩参数的倍数关系
+        Stochastics_LOW = Stochastics.rolling(n * 3).min()  # Stochastics_LOW=MIN(Stochastics,M)
+        Stochastics_HIGH = Stochastics.rolling(n * 3).max()  # Stochastics_HIGH=MAX(Stochastics,M)
+        Stochastics_DOUBLE = (Stochastics - Stochastics_LOW) / (Stochastics_HIGH - Stochastics_LOW)  # Stochastics_DOUBLE=(Stochastics-Stochastics_LOW)/(Stochastics_HIGH-Stochastics_LOW)*100
+        K = Stochastics_DOUBLE.ewm(com=2).mean()  # K=SMA(Stochastics_DOUBLE,3,1)
+        D = K.ewm(com=2).mean()  # D=SMA(K,3,1)
+        f_name = f'kdjd_d_bh_{n}'
+        df[f_name] = D.shift(1 if need_shift else 0)
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
