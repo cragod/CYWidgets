@@ -30,6 +30,16 @@ def add_diff_columns(df, name, agg_dict, agg_type, diff_d=[0.3, 0.5, 0.7]):
 
         agg_dict[name + f'_diff_{d_num}'] = agg_type
 
+
+def process_general_procedure(df, f_name, extra_agg_dict, add_diff):
+    """处理通用流程"""
+    extra_agg_dict[f_name] = 'first'
+    if type(add_diff) is list:
+        add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+    elif add_diff:
+        add_diff_columns(df, f_name, extra_agg_dict, 'first')
+
+
 # ===== 技术指标 =====
 
 
@@ -141,11 +151,7 @@ def 资金流入比例_indicator(df, back_hour_list, need_shift, extra_agg_dict=
         buy_volume = df['taker_buy_quote_asset_volume'].rolling(n, min_periods=1).sum()
         f_name = f'资金流入比例_bh_{n}'
         df[f_name] = (buy_volume / volume).shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
 
 
 def rsi_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
@@ -159,11 +165,7 @@ def rsi_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fa
 
         f_name = f'rsi_bh_{n}'
         df[f_name] = (a / (a + b)).shift(1 if need_shift else 0)  # RSI
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
 
 
 def bias_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
@@ -172,11 +174,7 @@ def bias_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=F
         f_name = f'bias_bh_{n}'
         ma = df['close'].rolling(n, min_periods=1).mean()
         df[f_name] = (df['close'] / ma - 1).shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
 
 
 def cci_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
@@ -188,11 +186,7 @@ def cci_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fa
         df['md'] = abs(df['close'] - df['ma']).rolling(window=n, min_periods=1).mean()
         df[f_name] = (df['tp'] - df['ma']) / df['md'] / 0.015
         df[f_name] = df[f_name].shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
 
 
 def cci_ema_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
@@ -223,11 +217,8 @@ def cci_ema_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_dif
         f_name = f'cci_ema_bh_{n}'
         df[f_name] = (df['tp'] - df['ma']) / df['md']  # CCI=(TP-MA)/(0.015MD)  CCI在一定范围内
         df[f_name] = df[f_name].shift(1 if need_shift else 0)  # 取前一周期防止未来函数  实盘中不需要
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
         # # 删除中间数据
         del df['oma']
         del df['hma']
@@ -247,11 +238,7 @@ def psy_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fa
         df['up'] = np.where(df['rtn'] > 0, 1, 0)
         df[f_name] = df['up'].rolling(window=n).sum() / n
         df[f_name] = df[f_name].shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
 
 
 def cmo_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
@@ -265,11 +252,7 @@ def cmo_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fa
         df['dn_sum'] = df['dn'].rolling(window=n, min_periods=1).sum()
         df[f_name] = (df['up_sum'] - df['dn_sum']) / (df['up_sum'] + df['dn_sum'])
         df[f_name] = df[f_name].shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
 
 
 def vma_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
@@ -287,11 +270,7 @@ def vma_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fa
         vma = price.rolling(n, min_periods=1).mean()  # VMA=MA(PRICE,N)
         df[f_name] = price / vma - 1  # 去量纲
         df[f_name] = df[f_name].shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
 
 
 def pmo_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
@@ -319,11 +298,8 @@ def pmo_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fa
         df['PMO_SIGNAL'] = df['PMO'].rolling(2 * n, min_periods=1).mean()  # PMO_SIGNAL=DMA(PMO,2/(N3+1))
 
         df[f_name] = df['PMO_SIGNAL'].shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
         # 删除中间过渡数据
         del df['ROC']
         del df['ROC_MA']
@@ -358,11 +334,8 @@ def reg_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fa
         df['reg'] = df['close'] / df['reg_close'] - 1
 
         df[f_name] = df['reg'].shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
         # 删除中间过程数据
         del df['reg']
         del df['reg_close']
@@ -396,11 +369,8 @@ def reg_ta_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff
         # df['reg'] = df['close'] / df['reg_close'] - 1
 
         df[f_name] = df['reg'].shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
         # 删除中间过程数据
         del df['reg']
         del df['reg_close']
@@ -423,11 +393,7 @@ def dema_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=F
         # dema 去量纲
         df[f_name] = dema / ema - 1
         df[f_name] = df[f_name].shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
 
 
 def cr_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
@@ -452,11 +418,8 @@ def cr_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fal
         df['L'] = np.where(df['TYP'].shift(1) > df['low'], df['L_TYP'], 0)  # L=MAX(REF(TYP,1)-LOW,0)
         df['CR'] = df['H'].rolling(n).sum() / df['L'].rolling(n).sum() * 100  # CR=SUM(H,N)/SUM(L,N)*100
         df[f_name] = df['CR'].shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
         # 删除中间数据
         del df['TYP']
         del df['H_TYP']
@@ -485,11 +448,8 @@ def bop_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fa
         df['BOP'] = (df['co'] / df['hl']).rolling(n, min_periods=1).mean()  # BOP=MA((CLOSE-OPEN)/(HIGH-LOW),N)
 
         df[f_name] = df['BOP'].shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
         # 删除中间过程数据
         del df['co']
         del df['hl']
@@ -513,11 +473,8 @@ def hullma_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff
         df['HULLMA'] = df['X'].ewm(int(np.sqrt(2 * n)), adjust=False).mean()  # HULLMA=EMA(X,[√𝑁])
         # 去量纲
         df[f_name] = df['HULLMA'].shift(1) - 1
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
         # 删除过程数据
         del df['X']
         del df['HULLMA']
@@ -530,11 +487,7 @@ def angle_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=
         ma = df['close'].rolling(window=n, min_periods=1).mean()
         df[f_name] = ta.LINEARREG_ANGLE(ma, n)
         df[f_name] = df[f_name].shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
 
 
 def gap_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
@@ -546,11 +499,7 @@ def gap_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fa
         f_name = f'gap_bh_{n}'
         df[f_name] = gap / abs(gap).rolling(window=n).sum()
         df[f_name] = df[f_name].shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
 
 
 def 癞子_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
@@ -560,11 +509,7 @@ def 癞子_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff
         f_name = f'癞子_bh_{n}'
         df[f_name] = diff / abs(diff).rolling(window=n).sum()
         df[f_name] = df[f_name].shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
 
 
 def pac_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
@@ -588,11 +533,7 @@ def pac_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fa
 
         df[f_name] = df['width'] / df['width_ma'] - 1
         df[f_name] = df[f_name].shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
 
         # 删除中间数据
         del df['upper']
@@ -635,11 +576,8 @@ def ddi_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fa
         DIF = DMF_SUM / (DMZ_SUM + DMF_SUM)  # DIF=SUM(DMF,N)/(SUM(DMZ,N)+SUM(DMF,N))
         df[f_name] = DIZ - DIF
         df[f_name] = df[f_name].shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
         # 删除中间数据
         del df['hl']
         del df['abs_high']
@@ -667,11 +605,7 @@ def dc_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fal
         # 进行无量纲处理
         df[f_name] = middle / ma_middle - 1
         df[f_name] = df[f_name].shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
 
 
 def v3_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
@@ -716,11 +650,8 @@ def v3_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fal
 
         f_name = f'v3_bh_{n1}'
         df[f_name] = df[indicator].shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
         # 删除中间数据
         del df['mtm']
         del df['mtm_mean']
@@ -799,13 +730,7 @@ def v1_up_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=
 
         f_name = f'v1_up_bh_{n}'
         df[f_name] = factor1.shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-
-        # 差分
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
 
 
 def rccd_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
@@ -836,11 +761,8 @@ def rccd_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=F
 
         f_name = f'rccd_bh_{n}'
         df[f_name] = df['RCCD'].shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
         # 删除中间数据
         del df['RC']
         del df['ARC1']
@@ -873,11 +795,8 @@ def vidya_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=
         f_name = f'vidya_bh_{n}'
         df[f_name] = VIDYA / df['close'] - 1
         df[f_name] = df[f_name].shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
         # 删除中间数据
         del df['abs_diff_close']
         del df['abs_diff_close_sum']
@@ -911,11 +830,8 @@ def apz_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fa
         f_name = f'apz_bh_{n}'
         df[f_name] = df['vol'] / df['ema_ema_close']
         df[f_name] = df[f_name].shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
         # 删除中间数据
         del df['hl']
         del df['ema_hl']
@@ -948,11 +864,8 @@ def rwih_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=F
 
         f_name = f'rwih_bh_{n}'
         df[f_name] = df['RWIH'].shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
         # 删除中间过程数据
         del df['c1']
         del df['c2']
@@ -986,11 +899,8 @@ def rwil_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=F
 
         f_name = f'rwil_bh_{n}'
         df[f_name] = df['RWIL'].shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
         # 删除中间过程数据
         del df['c1']
         del df['c2']
@@ -1019,12 +929,7 @@ def ma_displaced_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, ad
         f_column = f'ma_displaced_bh_{n}'
         df[f_column] = df['close'] / ref - 1  # 去量纲
         df[f_column] = df[f_column].shift(1 if need_shift else 0)
-        extra_agg_dict[f_column] = 'first'
-        # 差分
-        if type(add_diff) is list:
-            add_diff_columns(df, f_column, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_column, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
 
 
 def dbcd_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
@@ -1037,12 +942,7 @@ def dbcd_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=F
         # df['dbcd'] = df['BIAS_DIF'].ewm(span=3 * n3).mean()  # DBCD=SMA(BIAS_DIFF,T,1)
         f_name = f'dbcd_bh_{n}'
         df[f_name] = df['DBCD'].shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
 
         del df['ma']
         del df['BIAS']
@@ -1068,11 +968,8 @@ def uos_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fa
 
         f_name = f'uos_bh_{n}'
         df[f_name] = df['UOS'].shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
         del df['ref_close']
         del df['TH']
         del df['TL']
@@ -1095,11 +992,8 @@ def trix_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=F
 
         f_name = f'trix_bh_{n}'
         df[f_name] = df['TRIX'].shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
         del df['ema']
         del df['ema_ema']
         del df['ema_ema_ema']
@@ -1114,11 +1008,8 @@ def vwap_bias_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_d
         f_name = f'vwap_bias_bh_{n}'
         df[f_name] = df['vwap'] / ma - 1
         df[f_name] = df[f_name].shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
         del df['vwap']
 
 
@@ -1135,11 +1026,8 @@ def ko_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fal
         df[f_name] = (df['KO'] - df['KO'].rolling(n).min()) / (
             df['KO'].rolling(n).max() - df['KO'].rolling(n).min())
         df[f_name] = df[f_name].shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
         del df['price']
         del df['V']
         del df['V_ema1']
@@ -1157,11 +1045,7 @@ def mtm_mean_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_di
     for n in back_hour_list:
         f_name = f'mtm_mean_bh_{n}'
         df[f_name] = (df['close'] / df['close'].shift(n) - 1).rolling(window=n, min_periods=1).mean().shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
 
 
 def force_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
@@ -1172,12 +1056,8 @@ def force_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=
         f_name = f'force_bh_{n}'
         df[f_name] = df['force'].rolling(n, min_periods=1).mean()
         df[f_name] = df[f_name].shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
 
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
         # 删除中间过程数据
         del df['force']
 
@@ -1201,11 +1081,7 @@ def bolling_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_dif
         f_name = f'bolling_bh_{n}'
         df[f_name] = df['distance'] / df['std']
         df[f_name] = df[f_name].shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
 
 
 def vix_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
@@ -1217,11 +1093,7 @@ def vix_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fa
         f_name = f'vix_bh_{n}'
         df[f_name] = df['vix'] - df['up']
         df[f_name] = df[f_name].shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
 
 
 def vix_bw_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
@@ -1246,12 +1118,8 @@ def vix_bw_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff
         df.loc[condition1, f_name] = 0
         df.loc[condition2, f_name] = 0
         df[f_name] = df[f_name].shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        # 差分
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
         df.drop(['vix', 'vix_median', 'vix_std', 'max', 'min', 'vix_score', 'vix_upper', 'vix_lower'], axis=1, inplace=True)
 
 
@@ -1269,11 +1137,7 @@ def atr_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fa
 
         f_name = f'atr_bh_{n}'
         df[f_name] = df['atr_speed_up'].shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
 
 
 def market_pnl_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
@@ -1298,11 +1162,8 @@ def market_pnl_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_
         f_name = f'market_pnl_bh_{n}'
         df[f_name] = df['close'] / df[f'前{n}h平均持仓成本'] - 1
         df[f_name] = df[f_name].shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
         del df[f'avg_p']
         del df[f'前{n}h平均持仓成本']
 
@@ -1315,11 +1176,7 @@ def 收高差值_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, ad
         # 去量纲
         df[f_name] = (df['close'] - df['high_mean']) / df['close']
         df[f_name] = df[f_name].shift(1 if need_shift else 0)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
 
 
 def pvt_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
@@ -1332,8 +1189,4 @@ def pvt_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fa
         f_name = f'pvt_bh_{n}'
         df[f_name] = (df['PVT'] / df['PVT_MA'] - 1)
         df[f_name] = df[f_name].rolling(n, min_periods=1).sum().shift(1)
-        extra_agg_dict[f_name] = 'first'
-        if type(add_diff) is list:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
-        elif add_diff:
-            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        process_general_procedure(df, f_name, extra_agg_dict, add_diff)
