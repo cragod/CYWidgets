@@ -159,3 +159,19 @@ class BinanceNeutral_RCCD_VIX_MARKETPNL_VMA_BIAS(BinanceNeutralCompoundBase):
     @property
     def factor_configs(self):
         return ('rccd', 1, 6, 0.3, 0.7), ('vix', 0, 9, 0.5, 1.0), ('market_pnl', 1, 96, 0.7, 0.1), ('vma', 0, 8, 0.5, 0.7), ('bias', 0, 8, 0.7, 1.0)
+
+
+class BinanceNeutral_TRIX_T3_HMA_BBI_SROC_ER_KDJD(BinanceNeutralCompoundBase):
+    # 8. ('trix', 1, 30, 0.7, 1.0), ('t3', 0, 8, 0.7, 1.0), ('hma', 0, 28, 0.7, 1.0), ('bbi', 1, 4, 0.7, 0.3), ('sroc', 1, 10, 0.7, 0.9), ('er_bull', 0, 12, 0, 0.7), ('kdjd_d', 1, 52, 0.7, 0.3), ('market_pnl', 0, 96, 0.7, 1.0), ('dbcd', 1, 6, 0.7, 0.2), ('rccd', 1, 8, 0.7, 0.7), ('ko', 1, 6, 0.7, 0.5)
+
+    @property
+    def display_name(self):
+        return "8. TRIX_T3_HMA_BBI_SROC..._6H"
+
+    @property
+    def candle_count_4_cal_factor(self):
+        return 250
+
+    @property
+    def factor_configs(self):
+        return ('trix', 1, 30, 0.7, 1.0), ('t3', 0, 8, 0.7, 1.0), ('hma', 0, 28, 0.7, 1.0), ('bbi', 1, 4, 0.7, 0.3), ('sroc', 1, 10, 0.7, 0.9), ('er_bull', 0, 12, 0, 0.7), ('kdjd_d', 1, 52, 0.7, 0.3), ('market_pnl', 0, 96, 0.7, 1.0), ('dbcd', 1, 6, 0.7, 0.2), ('rccd', 1, 8, 0.7, 0.7), ('ko', 1, 6, 0.7, 0.5)
