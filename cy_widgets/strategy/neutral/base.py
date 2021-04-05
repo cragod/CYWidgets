@@ -19,6 +19,7 @@ class NeutralStrategyBase:
         self.select_coin_num = int(parameters[0])
         self.hold_period = f'{int(parameters[1])}h'
         self.leverage = float(parameters[2])
+        self._did_init()
 
     @abstractproperty
     def candle_count_4_cal_factor(self):
@@ -31,6 +32,9 @@ class NeutralStrategyBase:
     @abstractmethod
     def cal_factor(self, df):
         raise NotImplementedError('计算后需要保证有 factor 列作为alpha')
+
+    def _did_init(self):
+        pass
 
     def _add_diff(self, _df, _diff_d, _name, _add=True):
         """ 为 数据列 添加 差分数据列
@@ -123,23 +127,36 @@ class NeutralStrategyBase:
         # ===计算横截面 Factor（按需）
         self.cal_compound_factors(df)
 
-        # ===选币数据整理完成，接下来开始选币
-        # 多空双向rank
-        df['币总数'] = df.groupby(df.index).size()
-        df['rank'] = df.groupby('s_time')['factor'].rank(method='first')
         print('空因子:', df[['symbol', 'factor', 's_time']][pd.isnull(df['factor'])])
-        # 关于rank的first参数的说明https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.rank.html
-        # 删除不要的币
+        # # ===选币数据整理完成，接下来开始选币
+        # # 多空双向rank
+        # df['币总数'] = df.groupby(df.index).size()
+        # df['rank'] = df.groupby('s_time')['factor'].rank(method='first')
+        # # 关于rank的first参数的说明https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.rank.html
+        # # 删除不要的币
+        # df['方向'] = 0
+        # df.loc[(df['rank'] <= selected_coin_num) & df['condition_long'], '方向'] = 1
+        # df.loc[((df['币总数'] - df['rank']) < selected_coin_num) & df['condition_short'], '方向'] = -1
+        # df = df[df['方向'] != 0]
+
         df['方向'] = 0
-        df.loc[(df['rank'] <= selected_coin_num) & df['condition_long'], '方向'] = 1
-        # print(df[(df['rank'] <= selected_coin_num) & df['condition_long']][['symbol', 's_time', 'e_time', 'rank', 'factor', '方向']])
-        df.loc[((df['币总数'] - df['rank']) < selected_coin_num) & df['condition_short'], '方向'] = -1
-        # print(df[((df['币总数'] - df['rank']) < selected_coin_num) & df['condition_short']][['symbol', 's_time', 'e_time', 'rank', 'factor', '方向']])
-        df = df[df['方向'] != 0]
+        # 多
+        df_long = df[df.condition_long]
+        df_long['rank_1'] = df_long.groupby('s_time')['factor'].rank(method='first')
+        df_long.loc[(df_long['rank_1'] <= selected_coin_num), '方向'] = 1
+        df_long = df_long[df_long['方向'] != 0]
+
+        # 空
+        df_short = df[df.condition_short]
+        df_short['rank_2'] = df_short.groupby('s_time')['factor'].rank(method='first', ascending=False)
+        df_short.loc[(df_short['rank_2'] <= selected_coin_num), '方向'] = -1
+        df_short = df_short[df_short['方向'] != 0]
+
+        df = pd.concat([df_long, df_short], ignore_index=True)
 
         # ===将每个币种的数据保存到dict中
         # 删除不需要的列
-        df.drop(['factor', '币总数', 'rank'], axis=1, inplace=True)
+        df.drop(['factor', 'rank_1', 'rank_2'], axis=1, inplace=True)
         df.reset_index(inplace=True)
         print('计算因子用时:', time.time() - cal_start)
         return df

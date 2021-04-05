@@ -175,3 +175,19 @@ class BinanceNeutral_TRIX_T3_HMA_BBI_SROC_ER_KDJD(BinanceNeutralCompoundBase):
     @property
     def factor_configs(self):
         return ('trix', 1, 30, 0.7, 1.0), ('t3', 0, 8, 0.7, 1.0), ('hma', 0, 28, 0.7, 1.0), ('bbi', 1, 4, 0.7, 0.3), ('sroc', 1, 10, 0.7, 0.9), ('er_bull', 0, 12, 0, 0.7), ('kdjd_d', 1, 52, 0.7, 0.3), ('market_pnl', 0, 96, 0.7, 1.0), ('dbcd', 1, 6, 0.7, 0.2), ('rccd', 1, 8, 0.7, 0.7), ('ko', 1, 6, 0.7, 0.5)
+
+
+class BinanceNeutral_SROC_KDJD_HMA_TRIX_MTMMEAM(BinanceNeutralCompoundBase):
+    # 9. ('sroc', 0, 3, 0.5, 1.0), ('gap', 1, 80, 0.7, 1.0), ('cci', 1, 36, 0, 1.0), ('kdjd_d', 1, 36, 0.3, 0.3), ('hma', 0, 18, 0.7, 1.0), ('trix', 1, 80, 0.7, 0.9), ('market_pnl', 0, 96, 0.7, 1.0), ('dbcd', 1, 6, 0.5, 1.0), ('mtm_mean', 0, 3, 0.7, 1.0)
+
+    @property
+    def display_name(self):
+        return "9. SROC_KDJD_HMA_TRIX_MTMMEAM..._8H"
+
+    @property
+    def candle_count_4_cal_factor(self):
+        return 650
+
+    @property
+    def factor_configs(self):
+        return ('sroc', 0, 3, 0.5, 1.0), ('gap', 1, 80, 0.7, 1.0), ('cci', 1, 36, 0, 1.0), ('kdjd_d', 1, 36, 0.3, 0.3), ('hma', 0, 18, 0.7, 1.0), ('trix', 1, 80, 0.7, 0.9), ('market_pnl', 0, 96, 0.7, 1.0), ('dbcd', 1, 6, 0.5, 1.0), ('mtm_mean', 0, 3, 0.7, 1.0)
