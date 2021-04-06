@@ -190,7 +190,7 @@ def cci_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=Fa
 
 
 def cci_ema_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
-    # magic_cci
+    # mag[ic_]cci
     for n in back_hour_list:
         """
         N=14
@@ -1128,7 +1128,7 @@ def vix_bw_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff
         process_general_procedure(df, f_name, extra_agg_dict, add_diff)
 
         df.drop(['vix', 'vix_median', 'vix_std', 'max', 'min', 'vix_score',
-                'vix_upper', 'vix_lower'], axis=1, inplace=True)
+                 'vix_upper', 'vix_lower'], axis=1, inplace=True)
 
 
 def atr_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
@@ -1659,3 +1659,842 @@ def kdjd_d_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff
         f_name = f'kdjd_d_bh_{n}'
         df[f_name] = D.shift(1 if need_shift else 0)
         process_general_procedure(df, f_name, extra_agg_dict, add_diff)
+
+
+def qstick_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # Qstick 指标
+    for n in back_hour_list:
+        """
+        N=20
+        Qstick=MA(CLOSE-OPEN,N)
+        Qstick 通过比较收盘价与开盘价来反映股价趋势的方向和强度。如果
+        Qstick 上穿/下穿 0 则产生买入/卖出信号。
+        """
+        cl = df['close'] - df['open']  # CLOSE-OPEN
+        Qstick = cl.rolling(n, min_periods=1).mean()  # Qstick=MA(CLOSE-OPEN,N)
+        # 进行无量纲处理
+        f_name = f'qstick_bh_{n}'
+        df[f_name] = cl / Qstick - 1
+        df[f_name] = df[f_name].shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+
+
+def copp_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # COPP 指标
+    for n in back_hour_list:
+        """
+        RC=100*((CLOSE-REF(CLOSE,N1))/REF(CLOSE,N1)+(CLOSE-REF(CLOSE,N2))/REF(CLOSE,N2))
+        COPP=WMA(RC,M)
+        COPP 指标用不同时间长度的价格变化率的加权移动平均值来衡量
+        动量。如果 COPP 上穿/下穿 0 则产生买入/卖出信号。
+        """
+        df['RC'] = 100 * ((df['close'] - df['close'].shift(n)) / df['close'].shift(n) + (
+            df['close'] - df['close'].shift(2 * n)) / df['close'].shift(2 * n))  # RC=100*((CLOSE-REF(CLOSE,N1))/REF(CLOSE,N1)+(CLOSE-REF(CLOSE,N2))/REF(CLOSE,N2))
+        df['COPP'] = df['RC'].rolling(n, min_periods=1).mean()  # COPP=WMA(RC,M)  使用ma代替wma
+        f_name = f'copp_bh_{n}'
+        df[f_name] = df['COPP'].shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        # 删除中间过程数据
+        del df['RC']
+        del df['COPP']
+
+
+def wc_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # WC 指标
+    for n in back_hour_list:
+        """
+        WC=(HIGH+LOW+2*CLOSE)/4
+        N1=20
+        N2=40
+        EMA1=EMA(WC,N1)
+        EMA2=EMA(WC,N2)
+        WC 也可以用来代替收盘价构造一些技术指标（不过相对比较少用
+        到）。我们这里用 WC 的短期均线和长期均线的交叉来产生交易信号。
+        """
+        WC = (df['high'] + df['low'] + 2 * df['close']) / 4  # WC=(HIGH+LOW+2*CLOSE)/4
+        df['ema1'] = WC.ewm(n, adjust=False).mean()  # EMA1=EMA(WC,N1)
+        df['ema2'] = WC.ewm(2 * n, adjust=False).mean()  # EMA2=EMA(WC,N2)
+        # 去量纲
+        f_name = f'wc_bh_{n}'
+        df[f_name] = df['ema1'] / df['ema2'] - 1
+        df[f_name] = df[f_name].shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        # 删除中间过程数据
+        del df['ema1']
+        del df['ema2']
+
+
+def fisher_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # FISHER指标
+    for n in back_hour_list:
+        """
+        N=20
+        PARAM=0.3
+        PRICE=(HIGH+LOW)/2
+        PRICE_CH=2*(PRICE-MIN(LOW,N)/(MAX(HIGH,N)-MIN(LOW,N))-
+        0.5)
+        PRICE_CHANGE=0.999 IF PRICE_CHANGE>0.99 
+        PRICE_CHANGE=-0.999 IF PRICE_CHANGE<-0.99
+        PRICE_CHANGE=PARAM*PRICE_CH+(1-PARAM)*REF(PRICE_CHANGE,1)
+        FISHER=0.5*REF(FISHER,1)+0.5*log((1+PRICE_CHANGE)/(1-PRICE_CHANGE))
+        PRICE_CH 用来衡量当前价位于过去 N 天的最高价和最低价之间的
+        位置。Fisher Transformation 是一个可以把股价数据变为类似于正态
+        分布的方法。Fisher 指标的优点是减少了普通技术指标的滞后性。
+        """
+        PARAM = 1 / n
+        df['price'] = (df['high'] + df['low']) / 2  # PRICE=(HIGH+LOW)/2
+        df['min_low'] = df['low'].rolling(n).min()  # MIN(LOW,N)
+        df['max_high'] = df['high'].rolling(n).max()  # MAX(HIGH,N)
+        df['price_ch'] = 2 * (df['price'] - df['min_low']) / (df['max_high'] - df['low']) - 0.5  # PRICE_CH=2*(PRICE-MIN(LOW,N)/(MAX(HIGH,N)-MIN(LOW,N))-0.5)
+        df['price_change'] = PARAM * df['price_ch'] + (1 - PARAM) * df['price_ch'].shift(1)
+        df['price_change'] = np.where(df['price_change'] > 0.99, 0.999, df['price_change'])  # PRICE_CHANGE=0.999 IF PRICE_CHANGE>0.99
+        df['price_change'] = np.where(df['price_change'] < -0.99, -0.999, df['price_change'])  # PRICE_CHANGE=-0.999 IF PRICE_CHANGE<-0.99
+        # 0.5 * np.log((1 + df['price_change']) / (1 - df['price_change']))
+        df['FISHER'] = 0.5 * np.log((1 + df['price_change']) / (1 - df['price_change']))
+        # FISHER=0.5*REF(FISHER,1)+0.5*log((1+PRICE_CHANGE)/(1-PRICE_CHANGE))
+        df['FISHER'] = 0.5 * df['FISHER'].shift(1) + 0.5 * np.log((1 + df['price_change']) / (1 - df['price_change']))
+
+        f_name = f'fisher_bh_{n}'
+        df[f_name] = df['FISHER'].shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        # 删除中间数据
+        del df['price']
+        del df['min_low']
+        del df['max_high']
+        del df['price_ch']
+        del df['price_change']
+        del df['FISHER']
+
+
+def demaker_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # Demakder 指标
+    for n in back_hour_list:
+        """
+        N=20
+        Demax=HIGH-REF(HIGH,1)
+        Demax=IF(Demax>0,Demax,0)
+        Demin=REF(LOW,1)-LOW
+        Demin=IF(Demin>0,Demin,0)
+        Demaker=MA(Demax,N)/(MA(Demax,N)+MA(Demin,N))
+        当 Demaker>0.7 时上升趋势强烈，当 Demaker<0.3 时下跌趋势强烈。
+        当 Demaker 上穿 0.7/下穿 0.3 时产生买入/卖出信号。
+        """
+        df['Demax'] = df['high'] - df['high'].shift(1)  # Demax=HIGH-REF(HIGH,1)
+        df['Demax'] = np.where(df['Demax'] > 0, df['Demax'], 0)  # Demax=IF(Demax>0,Demax,0)
+        df['Demin'] = df['low'].shift(1) - df['low']  # Demin=REF(LOW,1)-LOW
+        df['Demin'] = np.where(df['Demin'] > 0, df['Demin'], 0)  # Demin=IF(Demin>0,Demin,0)
+        df['Demax_ma'] = df['Demax'].rolling(n, min_periods=1).mean()  # MA(Demax,N)
+        df['Demin_ma'] = df['Demin'].rolling(n, min_periods=1).mean()  # MA(Demin,N)
+        df['Demaker'] = df['Demax_ma'] / (df['Demax_ma'] + df['Demin_ma'])  # Demaker=MA(Demax,N)/(MA(Demax,N)+MA(Demin,N))
+        f_name = f'demaker_bh_{n}'
+        df[f_name] = df['Demaker'].shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        # 删除中间过程数据
+        del df['Demax']
+        del df['Demin']
+        del df['Demax_ma']
+        del df['Demin_ma']
+        del df['Demaker']
+
+
+def ic_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # IC 指标
+    for n in back_hour_list:
+        """
+        N1=9
+        N2=26
+        N3=52
+        TS=(MAX(HIGH,N1)+MIN(LOW,N1))/2
+        KS=(MAX(HIGH,N2)+MIN(LOW,N2))/2
+        SPAN_A=(TS+KS)/2
+        SPAN_B=(MAX(HIGH,N3)+MIN(LOW,N3))/2
+        在 IC 指标中，SPAN_A 与 SPAN_B 之间的部分称为云。如果价格在
+        云上，则说明是上涨趋势（如果 SPAN_A>SPAN_B，则上涨趋势强
+        烈；否则上涨趋势较弱）；如果价格在云下，则为下跌趋势（如果
+        SPAN_A<SPAN_B，则下跌趋势强烈；否则下跌趋势较弱）。该指
+        标的使用方式与移动平均线有许多相似之处，比如较快的线（TS）突
+        破较慢的线（KS），价格突破 KS,价格突破云，SPAN_A 突破 SPAN_B
+        等。我们产生信号的方式是：如果价格在云上方 SPAN_A>SPAN_B，
+        则当价格上穿 KS 时买入；如果价格在云下方且 SPAN_A<SPAN_B，
+        则当价格下穿 KS 时卖出。
+        """
+        n2 = 3 * n
+        n3 = 2 * n2
+        df['max_high_1'] = df['high'].rolling(n, min_periods=1).max()  # MAX(HIGH,N1)
+        df['min_low_1'] = df['low'].rolling(n, min_periods=1).min()  # MIN(LOW,N1)
+        df['TS'] = (df['max_high_1'] + df['min_low_1']) / 2  # TS=(MAX(HIGH,N1)+MIN(LOW,N1))/2
+        df['max_high_2'] = df['high'].rolling(n2, min_periods=1).max()  # MAX(HIGH,N2)
+        df['min_low_2'] = df['low'].rolling(n2, min_periods=1).min()  # MIN(LOW,N2)
+        df['KS'] = (df['max_high_2'] + df['min_low_2']) / 2  # KS=(MAX(HIGH,N2)+MIN(LOW,N2))/2
+        df['span_A'] = (df['TS'] + df['KS']) / 2  # SPAN_A=(TS+KS)/2
+        df['max_high_3'] = df['high'].rolling(n3, min_periods=1).max()  # MAX(HIGH,N3)
+        df['min_low_3'] = df['low'].rolling(n3, min_periods=1).min()  # MIN(LOW,N3)
+        df['span_B'] = (df['max_high_3'] + df['min_low_3']) / 2  # SPAN_B=(MAX(HIGH,N3)+MIN(LOW,N3))/2
+
+        # 去量纲
+        f_name = f'ic_bh_{n}'
+        df[f_name] = df['span_A'] / df['span_B']
+        df[f_name] = df[f_name].shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        # 删除中间过程数据
+        del df['max_high_1']
+        del df['max_high_2']
+        del df['max_high_3']
+        del df['min_low_1']
+        del df['min_low_2']
+        del df['min_low_3']
+        del df['TS']
+        del df['KS']
+        del df['span_A']
+        del df['span_B']
+
+
+def tsi_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # TSI 指标
+    for n in back_hour_list:
+        """
+        N1=25
+        N2=13
+        TSI=EMA(EMA(CLOSE-REF(CLOSE,1),N1),N2)/EMA(EMA(ABS(
+        CLOSE-REF(CLOSE,1)),N1),N2)*100
+        TSI 是一种双重移动平均指标。与常用的移动平均指标对收盘价取移
+        动平均不同，TSI 对两天收盘价的差值取移动平均。如果 TSI 上穿 10/
+        下穿-10 则产生买入/卖出指标。
+        """
+        n1 = 2 * n
+        df['diff_close'] = df['close'] - df['close'].shift(1)  # CLOSE-REF(CLOSE,1)
+        df['ema'] = df['diff_close'].ewm(n1, adjust=False).mean()  # EMA(CLOSE-REF(CLOSE,1),N1)
+        df['ema_ema'] = df['ema'].ewm(n, adjust=False).mean()  # EMA(EMA(CLOSE-REF(CLOSE,1),N1),N2)
+
+        df['abs_diff_close'] = abs(df['diff_close'])  # ABS(CLOSE-REF(CLOSE,1))
+        df['abs_ema'] = df['abs_diff_close'].ewm(n1, adjust=False).mean()  # EMA(ABS(CLOSE-REF(CLOSE,1)),N1)
+        df['abs_ema_ema'] = df['abs_ema'].ewm(n, adjust=False).mean()  # EMA(EMA(ABS(CLOSE-REF(CLOSE,1)),N1)
+        # TSI=EMA(EMA(CLOSE-REF(CLOSE,1),N1),N2)/EMA(EMA(ABS(CLOSE-REF(CLOSE,1)),N1),N2)*100
+        df['TSI'] = df['ema_ema'] / df['abs_ema_ema'] * 100
+
+        f_name = f'tsi_bh_{n}'
+        df[f_name] = df['TSI'].shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        # 删除中间过程数据
+        del df['diff_close']
+        del df['ema']
+        del df['ema_ema']
+        del df['abs_diff_close']
+        del df['abs_ema']
+        del df['abs_ema_ema']
+        del df['TSI']
+
+
+def lma_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # LMA 指标
+    for n in back_hour_list:
+        """
+        N=20
+        LMA=MA(LOW,N)
+        LMA 为简单移动平均把收盘价替换为最低价。如果最低价上穿/下穿
+        LMA 则产生买入/卖出信号。
+        """
+        df['low_ma'] = df['low'].rolling(n, min_periods=1).mean()  # LMA=MA(LOW,N)
+        # 进行去量纲
+        f_name = f'lma_bh_{n}'
+        df[f_name] = df['low'] / df['low_ma'] - 1
+        df[f_name] = df[f_name].shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        # 删除中间过程数据
+        del df['low_ma']
+
+
+def imi_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # IMI 指标
+    for n in back_hour_list:
+        """
+        N=14
+        INC=SUM(IF(CLOSE>OPEN,CLOSE-OPEN,0),N)
+        DEC=SUM(IF(OPEN>CLOSE,OPEN-CLOSE,0),N)
+        IMI=INC/(INC+DEC)
+        IMI 的计算方法与 RSI 很相似。其区别在于，在 IMI 计算过程中使用
+        的是收盘价和开盘价，而 RSI 使用的是收盘价和前一天的收盘价。所
+        以，RSI 做的是前后两天的比较，而 IMI 做的是同一个交易日内的比
+        较。如果 IMI 上穿 80，则产生买入信号；如果 IMI 下穿 20，则产生
+        卖出信号。
+        """
+        df['INC'] = np.where(df['close'] > df['open'], df['close'] - df['open'], 0)  # IF(CLOSE>OPEN,CLOSE-OPEN,0)
+        df['INC_sum'] = df['INC'].rolling(n).sum()  # INC=SUM(IF(CLOSE>OPEN,CLOSE-OPEN,0),N)
+        df['DEC'] = np.where(df['open'] > df['close'], df['open'] - df['close'], 0)  # IF(OPEN>CLOSE,OPEN-CLOSE,0)
+        df['DEC_sum'] = df['DEC'].rolling(n).sum()  # DEC=SUM(IF(OPEN>CLOSE,OPEN-CLOSE,0),N)
+        df['IMI'] = df['INC_sum'] / (df['INC_sum'] + df['DEC_sum'])  # IMI=INC/(INC+DEC)
+
+        f_name = f'imi_bh_{n}'
+        df[f_name] = df['IMI'].shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        # 删除中间过程数据
+        del df['INC']
+        del df['INC_sum']
+        del df['DEC']
+        del df['DEC_sum']
+        del df['IMI']
+
+
+def osc_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # OSC 指标
+    for n in back_hour_list:
+        """
+        N=40
+        M=20
+        OSC=CLOSE-MA(CLOSE,N)
+        OSCMA=MA(OSC,M)
+        OSC 反映收盘价与收盘价移动平均相差的程度。如果 OSC 上穿/下 穿 OSCMA 则产生买入/卖出信号。
+        """
+        df['ma'] = df['close'].rolling(2 * n, min_periods=1).mean()  # MA(CLOSE,N)
+        df['OSC'] = df['close'] - df['ma']  # OSC=CLOSE-MA(CLOSE,N)
+        df['OSCMA'] = df['OSC'].rolling(n, min_periods=1).mean()  # OSCMA=MA(OSC,M)
+        f_name = f'osc_bh_{n}'
+        df[f_name] = df['OSCMA'].shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        # 删除中间过程数据
+        del df['ma']
+        del df['OSC']
+        del df['OSCMA']
+
+
+def clv_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # CLV 指标
+    for n in back_hour_list:
+        """
+        N=60
+        CLV=(2*CLOSE-LOW-HIGH)/(HIGH-LOW)
+        CLVMA=MA(CLV,N)
+        CLV 用来衡量收盘价在最低价和最高价之间的位置。当
+        CLOSE=HIGH 时，CLV=1;当 CLOSE=LOW 时，CLV=-1;当 CLOSE
+        位于 HIGH 和 LOW 的中点时，CLV=0。CLV>0（<0），说明收盘价
+        离最高（低）价更近。我们用 CLVMA 上穿/下穿 0 来产生买入/卖出
+        信号。
+        """
+        # CLV=(2*CLOSE-LOW-HIGH)/(HIGH-LOW)
+        df['CLV'] = (2 * df['close'] - df['low'] - df['high']) / (df['high'] - df['low'])
+        df['CLVMA'] = df['CLV'].rolling(n, min_periods=1).mean()  # CLVMA=MA(CLV,N)
+        f_name = f'clv_bh_{n}'
+        df[f_name] = df['CLVMA'].shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        # 删除中间过程数据
+        del df['CLV']
+        del df['CLVMA']
+
+
+def wad_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    #  WAD 指标
+    for n in back_hour_list:
+        """
+        TRH=MAX(HIGH,REF(CLOSE,1))
+        TRL=MIN(LOW,REF(CLOSE,1))
+        AD=IF(CLOSE>REF(CLOSE,1),CLOSE-TRL,CLOSE-TRH) 
+        AD=IF(CLOSE>REF(CLOSE,1),0,CLOSE-REF(CLOSE,1))  # 该指标怀疑有误
+        WAD=CUMSUM(AD)
+        N=20
+        WADMA=MA(WAD,N)
+        我们用 WAD 上穿/下穿其均线来产生买入/卖出信号。
+        """
+        df['ref_close'] = df['close'].shift(1)  # REF(CLOSE,1)
+        df['TRH'] = df[['high', 'ref_close']].max(axis=1)  # TRH=MAX(HIGH,REF(CLOSE,1))
+        df['TRL'] = df[['low', 'ref_close']].min(axis=1)  # TRL=MIN(LOW,REF(CLOSE,1))
+        # AD=IF(CLOSE>REF(CLOSE,1),CLOSE-TRL,CLOSE-TRH)
+        df['AD'] = np.where(df['close'] > df['close'].shift(1), df['close'] - df['TRL'], df['close'] - df['TRH'])
+        # AD=IF(CLOSE>REF(CLOSE,1),0,CLOSE-REF(CLOSE,1))
+        df['AD'] = np.where(df['close'] > df['close'].shift(1), 0, df['close'] - df['close'].shift(1))
+        # WAD=CUMSUM(AD)
+        df['WAD'] = df['AD'].cumsum()
+        # WADMA=MA(WAD,N)
+        df['WADMA'] = df['WAD'].rolling(n, min_periods=1).mean()
+        # 去量纲
+        f_name = f'wad_bh_{n}'
+        df[f_name] = df['WAD'] / df['WADMA'] - 1
+        df[f_name] = df[f_name].shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        # 删除中间过程数据
+        del df['ref_close']
+        del df['TRH']
+        del df['AD']
+        del df['WAD']
+        del df['WADMA']
+
+
+def bias36_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # BIAS36
+    for n in back_hour_list:
+        """
+        N=6
+        BIAS36=MA(CLOSE,3)-MA(CLOSE,6)
+        MABIAS36=MA(BIAS36,N)
+        类似于乖离用来衡量当前价格与移动平均价的差距，三六乖离用来衡
+        量不同的移动平均价间的差距。当三六乖离上穿/下穿其均线时，产生
+        买入/卖出信号。
+        """
+        df['ma3'] = df['close'].rolling(n, min_periods=1).mean()  # MA(CLOSE,3)
+        df['ma6'] = df['close'].rolling(2 * n, min_periods=1).mean()  # MA(CLOSE,6)
+        df['BIAS36'] = df['ma3'] - df['ma6']  # BIAS36=MA(CLOSE,3)-MA(CLOSE,6)
+        df['MABIAS36'] = df['BIAS36'].rolling(2 * n, min_periods=1).mean()  # MABIAS36=MA(BIAS36,N)
+        # 去量纲
+        f_name = f'bias36_bh_{n}'
+        df[f_name] = df['BIAS36'] / df['MABIAS36']
+        df[f_name] = df[f_name].shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        # 删除中间过程数据
+        del df['ma3']
+        del df['ma6']
+        del df['BIAS36']
+        del df['MABIAS36']
+
+
+def tema_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # TEMA 指标
+    for n in back_hour_list:
+        """
+        N=20,40
+        TEMA=3*EMA(CLOSE,N)-3*EMA(EMA(CLOSE,N),N)+EMA(EMA(EMA(CLOSE,N),N),N)
+        TEMA 结合了单重、双重和三重的 EMA，相比于一般均线延迟性较
+        低。我们用快、慢 TEMA 的交叉来产生交易信号。
+        """
+        df['ema'] = df['close'].ewm(n, adjust=False).mean()  # EMA(CLOSE,N)
+        df['ema_ema'] = df['ema'].ewm(n, adjust=False).mean()  # EMA(EMA(CLOSE,N),N)
+        df['ema_ema_ema'] = df['ema_ema'].ewm(n, adjust=False).mean()  # EMA(EMA(EMA(CLOSE,N),N),N)
+        df['TEMA'] = 3 * df['ema'] - 3 * df['ema_ema'] + df['ema_ema_ema']  # TEMA=3*EMA(CLOSE,N)-3*EMA(EMA(CLOSE,N),N)+EMA(EMA(EMA(CLOSE,N),N),N)
+        # 去量纲
+        f_name = f'tema_bh_{n}'
+        df[f_name] = df['ema'] / df['TEMA'] - 1
+        df[f_name] = df[f_name].shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        # 删除中间过程数据
+        del df['ema']
+        del df['ema_ema']
+        del df['ema_ema_ema']
+        del df['TEMA']
+
+
+def dma_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # DMA 指标
+    for n in back_hour_list:
+        """
+        DMA=MA(CLOSE,N1)-MA(CLOSE,N2)
+        AMA=MA(DMA,N1)
+        DMA 衡量快速移动平均与慢速移动平均之差。用 DMA 上穿/下穿其
+        均线产生买入/卖出信号。
+        """
+        df['ma1'] = df['close'].rolling(n, min_periods=1).mean()  # MA(CLOSE,N1)
+        df['ma2'] = df['close'].rolling(n * 3, min_periods=1).mean()  # MA(CLOSE,N2)
+        df['DMA'] = df['ma1'] - df['ma2']  # DMA=MA(CLOSE,N1)-MA(CLOSE,N2)
+        df['AMA'] = df['DMA'].rolling(n, min_periods=1).mean()  # AMA=MA(DMA,N1)
+        # 去量纲
+        f_name = f'dma_bh_{n}'
+        df[f_name] = df['DMA'] / df['AMA'] - 1
+        df[f_name] = df[f_name].shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        # 删除中间过程数据
+        del df['ma1']
+        del df['ma2']
+        del df['DMA']
+        del df['AMA']
+
+
+def kst_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # KST 指标
+    for n in back_hour_list:
+        """
+        ROC_MA1=MA(CLOSE-REF(CLOSE,10),10)
+        ROC_MA2=MA(CLOSE -REF(CLOSE,15),10)
+        ROC_MA3=MA(CLOSE -REF(CLOSE,20),10)
+        ROC_MA4=MA(CLOSE -REF(CLOSE,30),10)
+        KST_IND=ROC_MA1+ROC_MA2*2+ROC_MA3*3+ROC_MA4*4
+        KST=MA(KST_IND,9)
+        KST 结合了不同时间长度的 ROC 指标。如果 KST 上穿/下穿 0 则产
+        生买入/卖出信号。
+        """
+        df['ROC1'] = df['close'] - df['close'].shift(n)  # CLOSE-REF(CLOSE,10)
+        df['ROC_MA1'] = df['ROC1'].rolling(n, min_periods=1).mean()  # ROC_MA1=MA(CLOSE-REF(CLOSE,10),10)
+        df['ROC2'] = df['close'] - df['close'].shift(int(n * 1.5))
+        df['ROC_MA2'] = df['ROC2'].rolling(n, min_periods=1).mean()
+        df['ROC3'] = df['close'] - df['close'].shift(int(n * 2))
+        df['ROC_MA3'] = df['ROC3'].rolling(n, min_periods=1).mean()
+        df['ROC4'] = df['close'] - df['close'].shift(int(n * 3))
+        df['ROC_MA4'] = df['ROC4'].rolling(n, min_periods=1).mean()
+        # KST_IND=ROC_MA1+ROC_MA2*2+ROC_MA3*3+ROC_MA4*4
+        df['KST_IND'] = df['ROC_MA1'] + df['ROC_MA2'] * 2 + df['ROC_MA3'] * 3 + df['ROC_MA4'] * 4
+        # KST=MA(KST_IND,9)
+        df['KST'] = df['KST_IND'].rolling(n, min_periods=1).mean()
+        # 去量纲
+        f_name = 'kst_bh_{n}'
+        df[f_name] = df['KST_IND'] / df['KST'] - 1
+        df[f_name] = df[f_name].shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        # 删除中间过程数据
+        del df['ROC1']
+        del df['ROC2']
+        del df['ROC3']
+        del df['ROC4']
+        del df['ROC_MA1']
+        del df['ROC_MA2']
+        del df['ROC_MA3']
+        del df['ROC_MA4']
+        del df['KST_IND']
+        del df['KST']
+
+
+def micd_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # MICD 指标
+    for n in back_hour_list:
+        """
+        N=20
+        N1=10
+        N2=20
+        M=10
+        MI=CLOSE-REF(CLOSE,1)
+        MTMMA=SMA(MI,N,1)
+        DIF=MA(REF(MTMMA,1),N1)-MA(REF(MTMMA,1),N2)
+        MICD=SMA(DIF,M,1)
+        如果 MICD 上穿 0，则产生买入信号；
+        如果 MICD 下穿 0，则产生卖出信号。
+        """
+        df['MI'] = df['close'] - df['close'].shift(1)  # MI=CLOSE-REF(CLOSE,1)
+        # df['MIMMA'] = df['MI'].rolling(n, min_periods=1).mean()
+        df['MIMMA'] = df['MI'].ewm(span=n).mean()  # MTMMA=SMA(MI,N,1)
+        df['MIMMA_MA1'] = df['MIMMA'].shift(1).rolling(n, min_periods=1).mean()  # MA(REF(MTMMA,1),N1)
+        df['MIMMA_MA2'] = df['MIMMA'].shift(1).rolling(2 * n, min_periods=1).mean()  # MA(REF(MTMMA,1),N2)
+        df['DIF'] = df['MIMMA_MA1'] - df['MIMMA_MA2']  # DIF=MA(REF(MTMMA,1),N1)-MA(REF(MTMMA,1),N2)
+        # df['MICD'] = df['DIF'].rolling(n, min_periods=1).mean()
+        df['MICD'] = df['DIF'].ewm(span=n).mean()
+        # 去量纲
+        f_name = f'micd_bh_{n}'
+        df[f_name] = df['DIF'] / df['MICD']
+        df[f_name] = df[f_name].shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        # 删除中间过渡数据
+        del df['MI']
+        del df['MIMMA']
+        del df['MIMMA_MA1']
+        del df['MIMMA_MA2']
+        del df['DIF']
+        del df['MICD']
+
+
+def ppo_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # PPO 指标
+    for n in back_hour_list:
+        """
+        N1=12
+        N2=26
+        N3=9
+        PPO=(EMA(CLOSE,N1)-EMA(CLOSE,N2))/EMA(CLOSE,N2)
+        PPO_SIGNAL=EMA(PPO,N3)
+        PPO 是 MACD 的变化率版本。
+        MACD=EMA(CLOSE,N1)-EMA(CLOSE,N2)，而
+        PPO=(EMA(CLOSE,N1)-EMA(CLOSE,N2))/EMA(CLOSE,N2)。
+        PPO 上穿/下穿 PPO_SIGNAL 产生买入/卖出信号。
+        """
+        #
+        N3 = n
+        N1 = int(n * 1.382)  # 黄金分割线
+        N2 = 3 * n
+        df['ema_1'] = df['close'].ewm(N1, adjust=False).mean()  # EMA(CLOSE,N1)
+        df['ema_2'] = df['close'].ewm(N2, adjust=False).mean()  # EMA(CLOSE,N2)
+        df['PPO'] = (df['ema_1'] - df['ema_2']) / df['ema_2']  # PPO=(EMA(CLOSE,N1)-EMA(CLOSE,N2))/EMA(CLOSE,N2)
+        df['PPO_SIGNAL'] = df['PPO'].ewm(N3, adjust=False).mean()  # PPO_SIGNAL=EMA(PPO,N3)
+
+        f_name = f'ppo_bh_{n}'
+        df[f_name] = df['PPO_SIGNAL'].shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        # 删除中间数据
+        del df['ema_1']
+        del df['ema_2']
+        del df['PPO']
+        del df['PPO_SIGNAL']
+
+
+def smi_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # SMI 指标
+    for n in back_hour_list:
+        """
+        N1=20
+        N2=20
+        N3=20
+        M=(MAX(HIGH,N1)+MIN(LOW,N1))/2
+        D=CLOSE-M
+        DS=EMA(EMA(D,N2),N2)
+        DHL=EMA(EMA(MAX(HIGH,N1)-MIN(LOW,N1),N2),N2)
+        SMI=100*DS/DHL
+        SMIMA=MA(SMI,N3)
+        SMI 指标可以看作 KDJ 指标的变形。不同的是，KD 指标衡量的是当
+        天收盘价位于最近 N 天的最高价和最低价之间的位置，而 SMI 指标
+        是衡量当天收盘价与最近 N 天的最高价与最低价均值之间的距离。我
+        们用 SMI 指标上穿/下穿其均线产生买入/卖出信号。
+        """
+        df['max_high'] = df['high'].rolling(n, min_periods=1).mean()  # MAX(HIGH,N1)
+        df['min_low'] = df['low'].rolling(n, min_periods=1).mean()  # MIN(LOW,N1)
+        df['M'] = (df['max_high'] + df['min_low']) / 2  # M=(MAX(HIGH,N1)+MIN(LOW,N1))/2
+        df['D'] = df['close'] - df['M']  # D=CLOSE-M
+        df['ema'] = df['D'].ewm(n, adjust=False).mean()  # EMA(D,N2)
+        df['DS'] = df['ema'].ewm(n, adjust=False).mean()  # DS=EMA(EMA(D,N2),N2)
+        df['HL'] = df['max_high'] - df['min_low']  # MAX(HIGH,N1) - MIN(LOW,N1)
+        df['ema_hl'] = df['HL'].ewm(n, adjust=False).mean()  # EMA(MAX(HIGH,N1)-MIN(LOW,N1),N2)
+        df['DHL'] = df['ema_hl'].ewm(n, adjust=False).mean()  # DHL=EMA(EMA(MAX(HIGH,N1)-MIN(LOW,N1),N2),N2)
+        df['SMI'] = 100 * df['DS'] / df['DHL']  # SMI=100*DS/DHL
+        df['SMIMA'] = df['SMI'].rolling(n, min_periods=1).mean()  # SMIMA=MA(SMI,N3)
+
+        f_name = f'smi_bh_{n}'
+        df[f_name] = df['SMIMA'].shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        # 删除中间数据
+        del df['max_high']
+        del df['min_low']
+        del df['M']
+        del df['D']
+        del df['ema']
+        del df['DS']
+        del df['HL']
+        del df['ema_hl']
+        del df['DHL']
+        del df['SMI']
+        del df['SMIMA']
+
+
+def arbr_ar_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # ARBR指标
+    for n in back_hour_list:
+        """
+        AR=SUM((HIGH-OPEN),N)/SUM((OPEN-LOW),N)*100
+        BR=SUM((HIGH-REF(CLOSE,1)),N)/SUM((REF(CLOSE,1)-LOW),N)*100
+        AR 衡量开盘价在最高价、最低价之间的位置；BR 衡量昨日收盘价在
+        今日最高价、最低价之间的位置。AR 为人气指标，用来计算多空双
+        方的力量对比。当 AR 值偏低（低于 50）时表示人气非常低迷，股价
+        很低，若从 50 下方上穿 50，则说明股价未来可能要上升，低点买入。
+        当 AR 值下穿 200 时卖出。
+        """
+        df['HO'] = df['high'] - df['open']  # (HIGH-OPEN)
+        df['OL'] = df['open'] - df['low']  # (OPEN-LOW)
+        df['AR'] = df['HO'].rolling(n).sum() / df['OL'].rolling(n).sum() * 100  # AR=SUM((HIGH-OPEN),N)/SUM((OPEN-LOW),N)*100
+        df['HC'] = df['high'] - df['close'].shift(1)  # (HIGH-REF(CLOSE,1))
+        df['CL'] = df['close'].shift(1) - df['low']  # (REF(CLOSE,1)-LOW)
+        df['BR'] = df['HC'].rolling(n).sum() / df['CL'].rolling(n).sum() * 100  # BR=SUM((HIGH-REF(CLOSE,1)),N)/SUM((REF(CLOSE,1)-LOW),N)*100
+
+        f_name = f'arbr_ar_bh_{n}'
+        df[f_name] = df['AR'].shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        # 删除中间数据
+        del df['HO']
+        del df['OL']
+        del df['AR']
+        del df['HC']
+        del df['CL']
+        del df['BR']
+
+
+def arbr_br_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # ARBR指标
+    for n in back_hour_list:
+        """
+        AR=SUM((HIGH-OPEN),N)/SUM((OPEN-LOW),N)*100
+        BR=SUM((HIGH-REF(CLOSE,1)),N)/SUM((REF(CLOSE,1)-LOW),N)*100
+        AR 衡量开盘价在最高价、最低价之间的位置；BR 衡量昨日收盘价在
+        今日最高价、最低价之间的位置。AR 为人气指标，用来计算多空双
+        方的力量对比。当 AR 值偏低（低于 50）时表示人气非常低迷，股价
+        很低，若从 50 下方上穿 50，则说明股价未来可能要上升，低点买入。
+        当 AR 值下穿 200 时卖出。
+        """
+        df['HO'] = df['high'] - df['open']  # (HIGH-OPEN)
+        df['OL'] = df['open'] - df['low']  # (OPEN-LOW)
+        df['AR'] = df['HO'].rolling(n).sum() / df['OL'].rolling(n).sum() * 100  # AR=SUM((HIGH-OPEN),N)/SUM((OPEN-LOW),N)*100
+        df['HC'] = df['high'] - df['close'].shift(1)  # (HIGH-REF(CLOSE,1))
+        df['CL'] = df['close'].shift(1) - df['low']  # (REF(CLOSE,1)-LOW)
+        df['BR'] = df['HC'].rolling(n).sum() / df['CL'].rolling(n).sum() * 100  # BR=SUM((HIGH-REF(CLOSE,1)),N)/SUM((REF(CLOSE,1)-LOW),N)*100
+
+        f_name = f'arbr_br_bh_{n}'
+        df[f_name] = df['BR'].shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        # 删除中间数据
+        del df['HO']
+        del df['OL']
+        del df['AR']
+        del df['HC']
+        del df['CL']
+        del df['BR']
+
+
+def do_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # DO 指标
+    for n in back_hour_list:
+        """
+        DO=EMA(EMA(RSI,N),M)
+        DO 是平滑处理（双重移动平均）后的 RSI 指标。DO 大于 0 则说明
+        市场处于上涨趋势，小于 0 说明市场处于下跌趋势。我们用 DO 上穿
+        /下穿其移动平均线来产生买入/卖出信号。
+        """
+        # 计算RSI
+        # 以下为基础策略分享会代码
+        # diff = df['close'].diff()
+        # df['up'] = np.where(diff > 0, diff, 0)
+        # df['down'] = np.where(diff < 0, abs(diff), 0)
+        # A = df['up'].rolling(n).sum()
+        # B = df['down'].rolling(n).sum()
+        # df['rsi'] = A / (A + B)
+        diff = df['close'].diff()  # CLOSE-REF(CLOSE,1) 计算当前close 与前一周期的close的差值
+        df['up'] = np.where(diff > 0, diff, 0)  # IF(CLOSE>REF(CLOSE,1),CLOSE-REF(CLOSE,1),0) 表示当前是上涨状态，记录上涨幅度
+        df['down'] = np.where(diff < 0, abs(diff), 0)  # IF(CLOSE<REF(CLOSE,1),ABS(CLOSE-REF(CLOSE,1)),0) 表示当前为下降状态，记录下降幅度
+        A = df['up'].ewm(span=n).mean()  # SMA(CLOSEUP,N,1) 计算周期内的上涨幅度的sma
+        B = df['down'].ewm(span=n).mean()  # SMA(CLOSEDOWN,N,1)计算周期内的下降幅度的sma
+        df['rsi'] = A / (A + B)  # RSI=100*CLOSEUP_MA/(CLOSEUP_MA+CLOSEDOWN_MA)  没有乘以100   没有量纲即可
+        df['ema_rsi'] = df['rsi'].ewm(n, adjust=False).mean()  # EMA(RSI,N)
+        df['DO'] = df['ema_rsi'].ewm(n, adjust=False).mean()  # DO=EMA(EMA(RSI,N),M)
+
+        f_name = f'do_bh_{n}'
+        df[f_name] = df['DO'].shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        # 删除中间数据
+        del df['up']
+        del df['down']
+        del df['rsi']
+        del df['ema_rsi']
+        del df['DO']
+
+
+def si_indicator(df, back_hour_list, need_shift, extra_agg_dict={}, add_diff=False):
+    # SI 指标
+    for n in back_hour_list:
+        """
+        A=ABS(HIGH-REF(CLOSE,1))
+        B=ABS(LOW-REF(CLOSE,1))
+        C=ABS(HIGH-REF(LOW,1))
+        D=ABS(REF(CLOSE,1)-REF(OPEN,1))
+        N=20
+        K=MAX(A,B)
+        M=MAX(HIGH-LOW,N)
+        R1=A+0.5*B+0.25*D
+        R2=B+0.5*A+0.25*D
+        R3=C+0.25*D
+        R4=IF((A>=B) & (A>=C),R1,R2)
+        R=IF((C>=A) & (C>=B),R3,R4)
+        SI=50*(CLOSE-REF(CLOSE,1)+(REF(CLOSE,1)-REF(OPEN,1))+
+        0.5*(CLOSE-OPEN))/R*K/M
+        SI 用价格变化（即两天收盘价之差，昨日收盘与开盘价之差，今日收
+        盘与开盘价之差）的加权平均来反映价格的变化。如果 SI 上穿/下穿
+        0 则产生买入/卖出信号。
+        """
+        df['A'] = abs(df['high'] - df['close'].shift(1))  # A=ABS(HIGH-REF(CLOSE,1))
+        df['B'] = abs(df['low'] - df['close'].shift(1))  # B=ABS(LOW-REF(CLOSE,1))
+        df['C'] = abs(df['high'] - df['low'].shift(1))  # C=ABS(HIGH-REF(LOW,1))
+        df['D'] = abs(df['close'].shift(1) - df['open'].shift(1))  # D=ABS(REF(CLOSE,1)-REF(OPEN,1))
+        df['K'] = df[['A', 'B']].max(axis=1)  # K=MAX(A,B)
+        df['M'] = (df['high'] - df['low']).rolling(n).max()  # M=MAX(HIGH-LOW,N)
+        df['R1'] = df['A'] + 0.5 * df['B'] + 0.25 * df['D']  # R1=A+0.5*B+0.25*D
+        df['R2'] = df['B'] + 0.5 * df['A'] + 0.25 * df['D']  # R2=B+0.5*A+0.25*D
+        df['R3'] = df['C'] + 0.25 * df['D']  # R3=C+0.25*D
+        df['R4'] = np.where((df['A'] >= df['B']) & (df['A'] >= df['C']), df['R1'], df['R2'])  # R4=IF((A>=B) & (A>=C),R1,R2)
+        df['R'] = np.where((df['C'] >= df['A']) & (df['C'] >= df['B']), df['R3'], df['R4'])  # R=IF((C>=A) & (C>=B),R3,R4)
+        # SI=50*(CLOSE-REF(CLOSE,1)+(REF(CLOSE,1)-REF(OPEN,1))+0.5*(CLOSE-OPEN))/R*K/M
+        df['SI'] = 50 * (df['close'] - df['close'].shift(1) + (df['close'].shift(1) - df['open'].shift(1)) +
+                         0.5 * (df['close'] - df['open'])) / df['R'] * df['K'] / df['M']
+        f_name = f'si_bh_{n}'
+        df[f_name] = df['SI'].shift(1 if need_shift else 0)
+        extra_agg_dict[f_name] = 'first'
+        if type(add_diff) is list:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first', diff_d=add_diff)
+        elif add_diff:
+            add_diff_columns(df, f_name, extra_agg_dict, 'first')
+        # 删除中间数据
+        del df['A']
+        del df['B']
+        del df['C']
+        del df['D']
+        del df['K']
+        del df['M']
+        del df['R1']
+        del df['R2']
+        del df['R3']
+        del df['R4']
+        del df['R']
+        del df['SI']
