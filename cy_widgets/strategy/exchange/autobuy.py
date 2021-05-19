@@ -60,6 +60,7 @@ class AutoBuyCoinStrategy(BaseExchangeStrategy):
             df.loc[signal_cond & over_buy_cond, COL_POS] = df[[COL_POS, col_max]].min(axis=1)
             df.loc[signal_cond & less_buy_cond, COL_POS] = 1  # - (df[col_close_to_ma_change] - 1.05) * 10
             df.loc[signal_cond & less_buy_cond, COL_POS] = df[[COL_POS, col_min]].max(axis=1)
+            df[COL_SIGNAL] = df[COL_POS]
         else:
             df[COL_POS] = df[COL_SIGNAL]
         return df
