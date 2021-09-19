@@ -41,8 +41,8 @@ class AutoInvestVarietalStrategy(BaseExchangeStrategy):
             col_ma = 'ma'
             # MA
             df[col_ma] = ta.MA(df[COL_CLOSE], timeperiod=self.ma_periods).shift(1)
-            # open / last_ma5 = signal
-            df.loc[df[COL_OPEN] / df[col_ma] < 1, COL_SIGNAL] = (1 - df[COL_OPEN] / df[col_ma]) * self.signal_scale + 1
+            # close / last_ma5 = signal
+            df.loc[df[COL_CLOSE] / df[col_ma] < 1, COL_SIGNAL] = (1 - df[COL_CLOSE] / df[col_ma]) * self.signal_scale + 1
             # fillna
             df[COL_SIGNAL].fillna(value=0, inplace=True)
         return df
