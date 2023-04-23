@@ -230,7 +230,10 @@ class BaseExchangeOrderExecutor(ABC):
         if self._order.coin_pair.custom_min_cost is not None:
             # 优先取自定义的最小下单金额
             return self._order.coin_pair.custom_min_cost
-        return self._ccxt_provider.ccxt_object_for_query.load_markets()[self._order.coin_pair.formatted()]['limits']['cost']['min']
+        result = self._ccxt_provider.ccxt_object_for_query.load_markets()[self._order.coin_pair.formatted()]['limits']['cost']['min']
+        if result is None:
+            result = 10.1
+        return result
 
     @abstractmethod
     def handle_long_order_request(self):
